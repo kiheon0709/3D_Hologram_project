@@ -2,6 +2,7 @@
 
 import { useState, ChangeEvent } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import EXIF from "exif-js";
 
 type DevicePreset = {
   id: string;
@@ -28,6 +29,103 @@ export default function HomePage() {
   const [hologramVideoUrl, setHologramVideoUrl] = useState<string | null>(null);
   const [isCreatingVideo, setIsCreatingVideo] = useState<boolean>(false);
   const [videoScale, setVideoScale] = useState<number>(1.0);
+
+  // 이미지 orientation 정규화 함수 (EXIF 정보 기반으로 올바른 방향으로 회전)
+  const normalizeImageOrientation = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        
+        img.onload = () => {
+          // EXIF 데이터 읽기
+          EXIF.getData(img as any, function(this: any) {
+            const orientation = EXIF.getTag(this, "Orientation") || 1;
+            
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              resolve(file);
+              return;
+            }
+
+            let width = this.width;
+            let height = this.height;
+
+            // EXIF orientation에 따라 canvas 크기 및 변환 설정
+            if (orientation > 4) {
+              // 90도 또는 270도 회전된 경우 width/height 교체
+              canvas.width = height;
+              canvas.height = width;
+            } else {
+              canvas.width = width;
+              canvas.height = height;
+            }
+
+            // orientation에 따라 변환 적용
+            switch (orientation) {
+              case 2:
+                // horizontal flip
+                ctx.transform(-1, 0, 0, 1, width, 0);
+                break;
+              case 3:
+                // 180° rotate left
+                ctx.transform(-1, 0, 0, -1, width, height);
+                break;
+              case 4:
+                // vertical flip
+                ctx.transform(1, 0, 0, -1, 0, height);
+                break;
+              case 5:
+                // vertical flip + 90 rotate right
+                ctx.transform(0, 1, 1, 0, 0, 0);
+                break;
+              case 6:
+                // 90° rotate right
+                ctx.transform(0, 1, -1, 0, height, 0);
+                break;
+              case 7:
+                // horizontal flip + 90 rotate right
+                ctx.transform(0, -1, -1, 0, height, width);
+                break;
+              case 8:
+                // 90° rotate left
+                ctx.transform(0, -1, 1, 0, 0, width);
+                break;
+              default:
+                // 1 또는 기타: 정상
+                break;
+            }
+
+            // 이미지 그리기
+            ctx.drawImage(this, 0, 0);
+            
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  const normalizedFile = new File([blob], file.name, {
+                    type: file.type || "image/jpeg",
+                    lastModified: Date.now(),
+                  });
+                  resolve(normalizedFile);
+                } else {
+                  resolve(file);
+                }
+              },
+              file.type || "image/jpeg",
+              0.95
+            );
+          });
+        };
+        
+        img.onerror = () => resolve(file);
+        img.src = e.target?.result as string;
+      };
+      
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  };
 
   // 실제 Supabase 업로드 로직 (파일 선택/드롭 시 바로 사용)
   const uploadImageToSupabase = async (file: File) => {
@@ -97,9 +195,13 @@ export default function HomePage() {
 
       console.log("업로드 시도:", { filePath, nextIndex });
 
+      // 이미지 orientation 정규화 (회전 문제 해결)
+      const normalizedFile = await normalizeImageOrientation(file);
+      console.log("이미지 orientation 정규화 완료");
+
       const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(filePath, file, {
+        .upload(filePath, normalizedFile, {
           cacheControl: "3600",
           upsert: false
         });
