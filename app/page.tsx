@@ -416,11 +416,11 @@ Lighting stays consistent and clean.`;
             ← 뒤로가기
           </button>
 
-          {/* 스케일 조절 컨트롤 (우측 하단 작게) */}
+          {/* 스케일 조절 컨트롤 (우측 상단 작게) */}
           <div
             style={{
               position: "absolute",
-              bottom: "20px",
+              top: "20px",
               right: "20px",
               padding: "8px 12px",
               backgroundColor: "rgba(0, 0, 0, 0.8)",
