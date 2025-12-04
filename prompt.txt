@@ -1,0 +1,16 @@
+Make a short video where the subject is perfectly preserved and maintained around a pure black (#000000) background.
+
+Please make the original image 3d as it is and make it slightly Rotate.
+Don't create a background, leave it black
+
+Make the beginning and the end continue.
+
+The background color must only be created in black.
+
+Keep all the original details, colors, and ratios.
+
+There are no shadows, no reflections, no particles, no added objects.
+The lighting remains constant and clean.
+
+The background is included in the beginning of the video and then disappears. Be careful about this
+Please make it with care so that the background is not created.
