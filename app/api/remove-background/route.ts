@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
-// Replicate에서 rembg-enhance 모델 페이지 → API 탭에서 version ID 복사해서 넣어주세요
+// Replicate에서 cjwbw/rembg 모델 페이지 → API 탭에서 version ID 복사해서 넣어주세요
 // 예: "a295a834-9a12-4c58-8d8d-0c07f3681c07" 같은 형태
 const REMBG_MODEL_VERSION = process.env.REPLICATE_REMBG_VERSION || "";
 

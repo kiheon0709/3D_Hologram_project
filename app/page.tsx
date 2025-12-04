@@ -661,11 +661,6 @@ Lighting stays consistent and clean.`;
                   : "3D 홀로그램 영상 만들기"}
               </button>
 
-              <p className="helper-text">
-                버튼을 누르면 선택한 사진이 Supabase 스토리지에 업로드됩니다. 이후 단계에서
-                AI 변환 및 홀로그램 전용 재생 화면으로 연결할 예정입니다.
-              </p>
-
               {uploadMessage && (
                 <p className="upload-status">{uploadMessage}</p>
               )}
