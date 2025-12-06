@@ -32,21 +32,23 @@ AI가 자동으로 **배경을 제거**하고, **움직이는 애니메이션 �
 
 #### 움직이는 영상으로 변환된 결과
 <video width="600" controls>
-  <source src="https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/11.MOV" type="video/mp4">
-  [다운로드](https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/11.MOV)
+  <source src="https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/11.MOV" type="video/quicktime">
+  브라우저가 비디오를 지원하지 않습니다. [다운로드](https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/11.MOV)하여 재생하세요.
 </video>
 
 #### 사방면 영상으로 변환된 결과
 <video width="600" controls>
-  <source src="https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/ScreenRecording_12-05-2025%2009-44-46_1.MOV" type="video/mp4">
-  [다운로드](https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/ScreenRecording_12-05-2025%2009-44-46_1.MOV)
+  <source src="https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/ScreenRecording_12-05-2025%2009-44-46_1.MOV" type="video/quicktime">
+  브라우저가 비디오를 지원하지 않습니다. [다운로드](https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/ScreenRecording_12-05-2025%2009-44-46_1.MOV)하여 재생하세요.
 </video>
 
 #### 실제 디바이스 홀로그램 데모 영상
 <video width="600" controls>
-  <source src="https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/IMG_4476.MOV" type="video/mp4">
-  [다운로드](https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/IMG_4476.MOV)
+  <source src="https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/IMG_4476.MOV" type="video/quicktime">
+  브라우저가 비디오를 지원하지 않습니다. [다운로드](https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/IMG_4476.MOV)하여 재생하세요.
 </video>
+
+> 💡 **참고:** GitHub README에서는 MOV 파일 재생이 제한될 수 있습니다. 영상이 재생되지 않으면 다운로드 링크를 클릭하여 로컬에서 재생하거나, YouTube에 업로드 후 임베드하는 것을 권장합니다.
 ---
 
 ## 🎯 Project Goals
