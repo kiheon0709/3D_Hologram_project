@@ -30,26 +30,23 @@ AI가 자동으로 **배경을 제거**하고, **움직이는 애니메이션 �
 
 ### 데모 영상
 
-#### 홀로그램 데모 영상 1
+#### 움직이는 영상으로 변환된 결과
 <video width="600" controls>
-  <source src="./demonstration_video/IMG_4476.MOV" type="video/mp4">
-  [다운로드](./demonstration_video/IMG_4476.MOV)
+  <source src="https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/11.MOV" type="video/mp4">
+  [다운로드](https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/11.MOV)
 </video>
 
-#### 홀로그램 데모 영상 2
+#### 사방면 영상으로 변환된 결과
 <video width="600" controls>
-  <source src="./demonstration_video/11.MOV" type="video/mp4">
-  [다운로드](./demonstration_video/11.MOV)
+  <source src="https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/ScreenRecording_12-05-2025%2009-44-46_1.MOV" type="video/mp4">
+  [다운로드](https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/ScreenRecording_12-05-2025%2009-44-46_1.MOV)
 </video>
 
-#### 화면 녹화 데모
+#### 실제 디바이스 홀로그램 데모 영상
 <video width="600" controls>
-  <source src="./demonstration_video/ScreenRecording_12-05-2025%2009-44-46_1.MOV" type="video/mp4">
-  [다운로드](./demonstration_video/ScreenRecording_12-05-2025%2009-44-46_1.MOV)
+  <source src="https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/IMG_4476.MOV" type="video/mp4">
+  [다운로드](https://ecvmsxobpmjxbtvvdgtd.supabase.co/storage/v1/object/public/3D_hologram_images/demonstration_video/IMG_4476.MOV)
 </video>
-
-> 💡 **참고:** GitHub에서는 MOV 파일을 직접 재생하지 못할 수 있습니다. 영상이 재생되지 않으면 다운로드 링크를 클릭하여 로컬에서 재생하세요.
-
 ---
 
 ## 🎯 Project Goals
@@ -209,6 +206,9 @@ AI가 만든 애니메이션을 기반으로 웹에서 실시간으로 4방면 �
 │   ├── globals.css                 # 전역 스타일
 │   ├── layout.tsx                  # 루트 레이아웃
 │   └── page.tsx                    # 메인 페이지 (홀로그램 뷰어 포함)
+├── demonstration_video/             # 데모 이미지 및 영상 (Git에 포함)
+│   ├── IMG_4531.JPG               # 홀로그램 디바이스 사진
+│   └── ...
 ├── lib/
 │   └── supabaseClient.ts          # Supabase 클라이언트 설정
 ├── package.json
