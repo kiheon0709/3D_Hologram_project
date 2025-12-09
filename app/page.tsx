@@ -29,6 +29,7 @@ export default function HomePage() {
   const [hologramVideoUrl, setHologramVideoUrl] = useState<string | null>(null);
   const [isCreatingVideo, setIsCreatingVideo] = useState<boolean>(false);
   const [videoScale, setVideoScale] = useState<number>(1.0);
+  const [skipBackgroundRemoval, setSkipBackgroundRemoval] = useState<boolean>(false);
 
   // 이미지 orientation 정규화 함수 (EXIF 정보 기반으로 올바른 방향으로 회전)
   const normalizeImageOrientation = (file: File): Promise<File> => {
@@ -268,6 +269,66 @@ export default function HomePage() {
     e.preventDefault();
   };
 
+  // 홀로그램 영상 생성 함수 (공통 로직)
+  const createHologramVideo = async (imageUrl: string) => {
+    setIsCreatingVideo(true);
+    
+    const prompt = `Create a short video where the subject stays perfectly preserved and centered on a pure black (#000000) background.
+
+Apply only subtle symmetric motion: a gentle left-right parallax and a very small tilt, just enough to suggest depth.
+The movement should be minimal and cyclic so it feels loop-friendly when repeated.
+
+You must generate background color only black.
+
+Do not reveal new angles. Do not rotate the subject.
+Keep all original details, colors and proportions.
+
+No shadows, no reflections, no particles, no added objects.
+Lighting stays consistent and clean.`;
+
+    try {
+      const videoRes = await fetch("/api/create-hologram-video", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          imageUrl: imageUrl,
+          prompt: prompt
+        }),
+      });
+
+      const videoData = await videoRes.json();
+
+      if (!videoRes.ok) {
+        console.error("영상 생성 오류:", videoData);
+        const errorMsg = videoData.detail 
+          ? `${videoData.error || "영상 생성 실패"}: ${videoData.detail}`
+          : videoData.error || "알 수 없는 오류";
+        setUploadMessage(`❌ ${errorMsg}`);
+        return false;
+      }
+
+      console.log("홀로그램 영상 생성 완료:", videoData);
+      setHologramVideoUrl(videoData.videoUrl);
+      setUploadMessage(`✅ 홀로그램 영상 생성 완료!`);
+
+      // 영상 생성 완료 후 전체 화면 검정 배경으로 전환
+      setShowHologramView(true);
+      return true;
+    } catch (err) {
+      console.error("영상 생성 중 오류:", err);
+      setUploadMessage(
+        `❌ 영상 생성 중 오류 발생: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+      return false;
+    } finally {
+      setIsCreatingVideo(false);
+    }
+  };
+
   // 버튼 클릭 시: 배경 제거 실행 → 완료 후 화면 전환
   const handleCreateClick = async () => {
     if (!selectedFile) return;
@@ -284,7 +345,14 @@ export default function HomePage() {
       .getPublicUrl(uploadedImagePath);
 
     const imageUrl = publicData.publicUrl;
-    console.log("배경 제거할 이미지 URL:", imageUrl, "(파일 경로:", uploadedImagePath, ")");
+    console.log("사용할 이미지 URL:", imageUrl, "(파일 경로:", uploadedImagePath, ")");
+
+    // 배경 제거 건너뛰기 옵션이 체크되어 있으면 바로 영상 생성
+    if (skipBackgroundRemoval) {
+      setUploadMessage("홀로그램 영상 생성 중...");
+      await createHologramVideo(imageUrl);
+      return;
+    }
 
     // 배경 제거 실행
     setIsRemovingBackground(true);
@@ -315,60 +383,7 @@ export default function HomePage() {
       setUploadMessage(`✅ 배경 제거 완료! 홀로그램 영상 생성 중...`);
 
       // 배경 제거 완료 후 홀로그램 영상 생성
-      setIsCreatingVideo(true);
-      
-      const prompt = `Create a short video where the subject stays perfectly preserved and centered on a pure black (#000000) background.
-
-Apply only subtle symmetric motion: a gentle left-right parallax and a very small tilt, just enough to suggest depth.
-The movement should be minimal and cyclic so it feels loop-friendly when repeated.
-
-You must generate background color only black.
-
-Do not reveal new angles. Do not rotate the subject.
-Keep all original details, colors and proportions.
-
-No shadows, no reflections, no particles, no added objects.
-Lighting stays consistent and clean.`;
-
-      try {
-        const videoRes = await fetch("/api/create-hologram-video", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ 
-            imageUrl: removeBgData.imageUrl,
-            prompt: prompt
-          }),
-        });
-
-        const videoData = await videoRes.json();
-
-        if (!videoRes.ok) {
-          console.error("영상 생성 오류:", videoData);
-          const errorMsg = videoData.detail 
-            ? `${videoData.error || "영상 생성 실패"}: ${videoData.detail}`
-            : videoData.error || "알 수 없는 오류";
-          setUploadMessage(`❌ ${errorMsg}`);
-          return;
-        }
-
-        console.log("홀로그램 영상 생성 완료:", videoData);
-        setHologramVideoUrl(videoData.videoUrl);
-        setUploadMessage(`✅ 홀로그램 영상 생성 완료!`);
-
-        // 영상 생성 완료 후 전체 화면 검정 배경으로 전환
-        setShowHologramView(true);
-      } catch (err) {
-        console.error("영상 생성 중 오류:", err);
-        setUploadMessage(
-          `❌ 영상 생성 중 오류 발생: ${
-            err instanceof Error ? err.message : String(err)
-          }`
-        );
-      } finally {
-        setIsCreatingVideo(false);
-      }
+      await createHologramVideo(removeBgData.imageUrl);
     } catch (err) {
       console.error("배경 제거 중 오류:", err);
       setUploadMessage(
@@ -647,6 +662,24 @@ Lighting stays consistent and clean.`;
                 </div>
               </div>
 
+              <div className="field-group">
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={skipBackgroundRemoval}
+                    onChange={(e) => setSkipBackgroundRemoval(e.target.checked)}
+                    style={{
+                      width: "18px",
+                      height: "18px",
+                      cursor: "pointer",
+                    }}
+                  />
+                  <span className="field-label" style={{ margin: 0 }}>
+                    배경 제거 건너뛰기 (원본 이미지로 바로 영상 생성)
+                  </span>
+                </label>
+              </div>
+
               <button
                 className="primary-btn"
                 onClick={handleCreateClick}
@@ -658,6 +691,8 @@ Lighting stays consistent and clean.`;
                   ? "배경 제거 중..."
                   : isCreatingVideo
                   ? "영상 생성 중..."
+                  : skipBackgroundRemoval
+                  ? "3D 홀로그램 영상 만들기 (배경 제거 없음)"
                   : "3D 홀로그램 영상 만들기"}
               </button>
 
