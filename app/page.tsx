@@ -30,6 +30,7 @@ export default function HomePage() {
   const [isCreatingVideo, setIsCreatingVideo] = useState<boolean>(false);
   const [videoScale, setVideoScale] = useState<number>(1.0);
   const [skipBackgroundRemoval, setSkipBackgroundRemoval] = useState<boolean>(false);
+  const [userPrompt, setUserPrompt] = useState<string>("");
 
   // 이미지 orientation 정규화 함수 (EXIF 정보 기반으로 올바른 방향으로 회전)
   const normalizeImageOrientation = (file: File): Promise<File> => {
@@ -273,7 +274,7 @@ export default function HomePage() {
   const createHologramVideo = async (imageUrl: string) => {
     setIsCreatingVideo(true);
     
-    const prompt = `Create a short video where the subject stays perfectly preserved and centered on a pure black (#000000) background.
+    const basePrompt = `Create a short video where the subject stays perfectly preserved and centered on a pure black (#000000) background.
 
 Apply only subtle symmetric motion: a gentle left-right parallax and a very small tilt, just enough to suggest depth.
 The movement should be minimal and cyclic so it feels loop-friendly when repeated.
@@ -285,6 +286,11 @@ Keep all original details, colors and proportions.
 
 No shadows, no reflections, no particles, no added objects.
 Lighting stays consistent and clean.`;
+
+    // 사용자 프롬프트가 있으면 기본 프롬프트 뒤에 추가
+    const prompt = userPrompt.trim() 
+      ? `${basePrompt}\n\nAdditional requirements: ${userPrompt.trim()}`
+      : basePrompt;
 
     try {
       const videoRes = await fetch("/api/create-hologram-video", {
@@ -678,6 +684,30 @@ Lighting stays consistent and clean.`;
                     배경 제거 건너뛰기 (원본 이미지로 바로 영상 생성)
                   </span>
                 </label>
+              </div>
+
+              <div className="field-group">
+                <label className="field-label">추가 프롬프트 (선택사항)</label>
+                <textarea
+                  value={userPrompt}
+                  onChange={(e) => setUserPrompt(e.target.value)}
+                  placeholder="예: 더 부드러운 움직임, 특정 색상 강조 등..."
+                  style={{
+                    width: "100%",
+                    minHeight: "80px",
+                    padding: "12px",
+                    fontSize: "14px",
+                    fontFamily: "inherit",
+                    backgroundColor: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    borderRadius: "8px",
+                    color: "#ffffff",
+                    resize: "vertical",
+                  }}
+                />
+                <p style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.5)", marginTop: "4px" }}>
+                  기본 프롬프트에 추가로 적용할 요구사항을 입력하세요.
+                </p>
               </div>
 
               <button
