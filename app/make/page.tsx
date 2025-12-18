@@ -12,6 +12,10 @@ type DevicePreset = {
 
 const DEVICE_PRESETS: DevicePreset[] = [
   {
+    id: "default",
+    label: "기본"
+  },
+  {
     id: "ipad-air-11",
     label: "iPad Air 11"
   }
@@ -19,7 +23,7 @@ const DEVICE_PRESETS: DevicePreset[] = [
 
 export default function MakePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [deviceId, setDeviceId] = useState<string>("ipad-air-11");
+  const [deviceId, setDeviceId] = useState<string>("default");
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
