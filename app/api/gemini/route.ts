@@ -73,7 +73,7 @@ async function getGoogleAccessToken(oidcToken: string): Promise<string> {
     if (errorMessage.includes("audience") || errorMessage.includes("Invalid value")) {
       errorMessage += `\n\n현재 audience 값: ${audience}\n` +
         `올바른 형식: //iam.googleapis.com/projects/{PROJECT_NUMBER}/locations/global/workloadIdentityPools/{POOL_ID}/providers/{PROVIDER_ID}\n` +
-        `환경 변수 ㅎGOOGLE_WIF_AUDIENCE에 전체 리소스 이름을 설정하거나,\n` +
+        `환경 변수 GOOGLE_WIF_AUDIENCE에 전체 리소스 이름을 설정하거나,\n` +
         `GOOGLE_PROJECT_NUMBER, GOOGLE_WIF_POOL_ID, GOOGLE_WIF_PROVIDER_ID를 개별 설정하세요.`;
     }
     
