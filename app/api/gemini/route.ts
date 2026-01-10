@@ -6,20 +6,50 @@ import { NextRequest, NextResponse } from "next/server";
  */
 async function getGoogleAccessToken(oidcToken: string): Promise<string> {
   const wifAudience = process.env.GOOGLE_WIF_AUDIENCE;
+  const projectNumber = process.env.GOOGLE_PROJECT_NUMBER;
+  const poolId = process.env.GOOGLE_WIF_POOL_ID;
+  const providerId = process.env.GOOGLE_WIF_PROVIDER_ID;
 
-  if (!wifAudience) {
-    throw new Error("GOOGLE_WIF_AUDIENCE 환경변수가 설정되지 않았습니다.");
+  // audience를 구성 (환경 변수에서 전체 값을 가져오거나, 개별 값으로 조합)
+  let audience: string;
+  
+  if (wifAudience) {
+    // 이미 전체 리소스 이름이 있는 경우
+    audience = wifAudience;
+    
+    // 형식 검증: //iam.googleapis.com/projects/... 형식인지 확인
+    if (!audience.startsWith("//iam.googleapis.com/projects/")) {
+      // 만약 형식이 맞지 않으면, 개별 값으로 조합 시도
+      if (projectNumber && poolId && providerId) {
+        audience = `//iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
+      } else {
+        throw new Error(
+          "GOOGLE_WIF_AUDIENCE가 올바른 형식이 아닙니다. " +
+          "형식: //iam.googleapis.com/projects/{PROJECT_NUMBER}/locations/global/workloadIdentityPools/{POOL_ID}/providers/{PROVIDER_ID} " +
+          "또는 GOOGLE_PROJECT_NUMBER, GOOGLE_WIF_POOL_ID, GOOGLE_WIF_PROVIDER_ID를 설정하세요."
+        );
+      }
+    }
+  } else if (projectNumber && poolId && providerId) {
+    // 개별 값으로 조합
+    audience = `//iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
+  } else {
+    throw new Error(
+      "GOOGLE_WIF_AUDIENCE 또는 (GOOGLE_PROJECT_NUMBER, GOOGLE_WIF_POOL_ID, GOOGLE_WIF_PROVIDER_ID) 환경변수가 설정되지 않았습니다."
+    );
   }
 
+  console.log("사용할 audience:", audience);
+
   // Google STS API를 통해 OIDC 토큰을 Google Cloud 액세스 토큰으로 교환
-  // 참고: grant_type (snake_case) 형식 사용
+  // 참고: OAuth 2.0 토큰 교환은 form-urlencoded 형식 사용
   const stsResponse = await fetch("https://sts.googleapis.com/v1/token", {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: new URLSearchParams({
-      audience: wifAudience,
+      audience: audience,
       grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
       requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
       scope: "https://www.googleapis.com/auth/cloud-platform",
@@ -37,10 +67,21 @@ async function getGoogleAccessToken(oidcToken: string): Promise<string> {
       errorDetail = { error: errorText };
     }
     
+    // audience 관련 에러인 경우 더 명확한 메시지 제공
+    let errorMessage = errorDetail.error_description || errorDetail.error || `STS API 호출 실패: ${stsResponse.statusText}`;
+    
+    if (errorMessage.includes("audience") || errorMessage.includes("Invalid value")) {
+      errorMessage += `\n\n현재 audience 값: ${audience}\n` +
+        `올바른 형식: //iam.googleapis.com/projects/{PROJECT_NUMBER}/locations/global/workloadIdentityPools/{POOL_ID}/providers/{PROVIDER_ID}\n` +
+        `환경 변수 GOOGLE_WIF_AUDIENCE에 전체 리소스 이름을 설정하거나,\n` +
+        `GOOGLE_PROJECT_NUMBER, GOOGLE_WIF_POOL_ID, GOOGLE_WIF_PROVIDER_ID를 개별 설정하세요.`;
+    }
+    
     throw {
       status: stsResponse.status,
-      message: errorDetail.error_description || errorDetail.error || `STS API 호출 실패: ${stsResponse.statusText}`,
+      message: errorMessage,
       details: errorDetail,
+      audience: audience, // 디버깅을 위해 현재 audience 값 포함
     };
   }
 
