@@ -104,7 +104,8 @@ async function callGeminiAPI(
 ): Promise<any> {
   const projectId = process.env.GOOGLE_PROJECT_ID;
   const location = process.env.GOOGLE_LOCATION || "us-central1";
-  const modelId = process.env.GEMINI_MODEL_ID || "gemini-1.5-flash-001"; // 전체 모델 ID 사용
+  // Gemini 모델 ID (버전 suffix 없이 사용)
+  const modelId = process.env.GEMINI_MODEL_ID || "gemini-1.5-flash";
 
   if (!projectId) {
     throw new Error("GOOGLE_PROJECT_ID 환경변수가 설정되지 않았습니다.");
