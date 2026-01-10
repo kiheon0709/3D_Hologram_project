@@ -29,7 +29,6 @@ export default function MakePage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [removedBackgroundUrl, setRemovedBackgroundUrl] = useState<string | null>(null);
   const [isRemovingBackground, setIsRemovingBackground] = useState<boolean>(false);
-  const [showHologramView, setShowHologramView] = useState<boolean>(false);
   const [uploadedImagePath, setUploadedImagePath] = useState<string | null>(null);
   const [hologramVideoUrl, setHologramVideoUrl] = useState<string | null>(null);
   const [isCreatingVideo, setIsCreatingVideo] = useState<boolean>(false);
@@ -143,12 +142,12 @@ export default function MakePage() {
     try {
       // 환경변수 확인
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-      if (!supabaseUrl || !supabaseKey) {
+      if (!supabaseUrl || !supabasePublishableKey) {
         console.error("환경변수 누락:", {
           supabaseUrl: !!supabaseUrl,
-          supabaseKey: !!supabaseKey
+          supabasePublishableKey: !!supabasePublishableKey
         });
         setUploadMessage(
           "❌ 환경변수가 설정되지 않았습니다. .env.local 파일을 확인해주세요."
@@ -310,8 +309,6 @@ export default function MakePage() {
       setHologramVideoUrl(videoData.videoUrl);
       setUploadMessage(`✅ 홀로그램 영상 생성 완료!`);
 
-      // 영상 생성 완료 후 전체 화면 검정 배경으로 전환
-      setShowHologramView(true);
       return true;
     } catch (err) {
       console.error("영상 생성 중 오류:", err);
@@ -440,234 +437,9 @@ export default function MakePage() {
     await createHologramVideo(imageUrl);
   };
 
-  // 홀로그램 재생 화면 (전체 화면 검정 배경)
-  if (showHologramView && hologramVideoUrl) {
-    return (
-      <main
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          backgroundColor: "#000000",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 9999,
-        }}
-      >
-        {hologramType === "4sides" ? (
-          /* 4방면 홀로그램 십자가 배치 */
-          <div
-            style={{
-              width: "100vmin",
-              height: "100vmin",
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gridTemplateRows: "1fr 1fr 1fr",
-              gap: 0,
-            }}
-          >
-            {/* 빈 공간 (좌상단) */}
-            <div style={{ backgroundColor: "#000000" }} />
-
-            {/* 상단: 180도 회전 */}
-            <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
-              <video
-                src={hologramVideoUrl}
-                autoPlay
-                loop
-                muted
-                playsInline
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  objectPosition: "center",
-                  transform: `rotate(180deg) scale(${videoScale})`,
-                }}
-              />
-            </div>
-
-            {/* 빈 공간 (우상단) */}
-            <div style={{ backgroundColor: "#000000" }} />
-
-            {/* 좌측: 90도 회전 */}
-            <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
-              <video
-                src={hologramVideoUrl}
-                autoPlay
-                loop
-                muted
-                playsInline
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  objectPosition: "center",
-                  transform: `rotate(90deg) scale(${videoScale})`,
-                }}
-              />
-            </div>
-
-            {/* 중앙 빈 공간 (피라미드 위치) */}
-            <div style={{ backgroundColor: "#000000" }} />
-
-            {/* 우측: 270도 회전 */}
-            <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
-              <video
-                src={hologramVideoUrl}
-                autoPlay
-                loop
-                muted
-                playsInline
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  objectPosition: "center",
-                  transform: `rotate(270deg) scale(${videoScale})`,
-                }}
-              />
-            </div>
-
-            {/* 빈 공간 (좌하단) */}
-            <div style={{ backgroundColor: "#000000" }} />
-
-            {/* 하단: 0도 (원본) */}
-            <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
-              <video
-                src={hologramVideoUrl}
-                autoPlay
-                loop
-                muted
-                playsInline
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  objectPosition: "center",
-                  transform: `rotate(0deg) scale(${videoScale})`,
-                }}
-              />
-            </div>
-
-            {/* 빈 공간 (우하단) */}
-            <div style={{ backgroundColor: "#000000" }} />
-          </div>
-        ) : (
-          /* 1면 홀로그램 (중앙 단일 화면) */
-          <div
-            style={{
-              width: "80vmin",
-              height: "80vmin",
-              maxWidth: "800px",
-              maxHeight: "800px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              overflow: "hidden",
-              backgroundColor: "#000000",
-            }}
-          >
-            <video
-              src={hologramVideoUrl}
-              autoPlay
-              loop
-              muted
-              playsInline
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                objectPosition: "center",
-                transform: `scale(${videoScale})`,
-              }}
-            />
-          </div>
-        )}
-
-        {/* 뒤로가기 버튼 */}
-        <button
-          onClick={() => setShowHologramView(false)}
-          style={{
-            position: "absolute",
-            top: "20px",
-            left: "20px",
-            padding: "10px 20px",
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            border: "1px solid rgba(255, 255, 255, 0.3)",
-            borderRadius: "8px",
-            color: "#ffffff",
-            cursor: "pointer",
-            fontSize: "14px",
-            fontWeight: 600,
-            zIndex: 10000,
-          }}
-        >
-          ← 뒤로가기
-        </button>
-
-        {/* 스케일 조절 컨트롤 (우측 상단 작게) */}
-        <div
-          style={{
-            position: "absolute",
-            top: "20px",
-            right: "20px",
-            padding: "8px 12px",
-            backgroundColor: "rgba(0, 0, 0, 0.8)",
-            border: "1px solid rgba(0, 0, 0, 0.4)",
-            borderRadius: "8px",
-            zIndex: 10000,
-            display: "flex",
-            flexDirection: "column",
-            gap: "4px",
-            minWidth: "140px",
-          }}
-        >
-          <label
-            style={{
-              color: "#ffffff",
-              fontSize: "10px",
-              fontWeight: 600,
-              marginBottom: "2px",
-            }}
-          >
-            확대: {videoScale.toFixed(1)}x
-          </label>
-          <input
-            type="range"
-            min="0.5"
-            max="2.0"
-            step="0.1"
-            value={videoScale}
-            onChange={(e) => setVideoScale(Number(e.target.value))}
-            style={{
-              width: "100%",
-              cursor: "pointer",
-              height: "4px",
-            }}
-          />
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: "8px",
-              color: "rgba(255, 255, 255, 0.5)",
-            }}
-          >
-            <span>0.5x</span>
-            <span>2.0x</span>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main style={{ minHeight: "calc(100vh - 64px)", padding: "48px 24px" }}>
-      <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
+    <main style={{ minHeight: "calc(100vh - 64px)", padding: "24px 24px" }}>
+      <div style={{ width: "100%", margin: "0 auto" }}>
         <h1 style={{ fontSize: "32px", fontWeight: 700, marginBottom: "8px", color: "#000000" }}>
           영상 만들기
         </h1>
@@ -675,8 +447,11 @@ export default function MakePage() {
           한 장의 사진으로 스마트폰 3D 홀로그램 프로젝터용 영상을 만들어 보세요.
         </p>
 
-        <div style={{ maxWidth: "800px", margin: "0 auto" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        {/* 좌우 분할 레이아웃 */}
+        <div style={{ display: "flex", gap: "32px", alignItems: "flex-start", width: "100%" }}>
+          {/* 좌측: 입력 폼 */}
+          <div style={{ flex: "1 1 0", minWidth: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
             <label
               onDrop={handleDrop}
               onDragOver={handleDragOver}
@@ -909,6 +684,224 @@ export default function MakePage() {
                 {uploadMessage}
               </p>
             )}
+            </div>
+          </div>
+
+          {/* 우측: 결과물 표시 */}
+          <div style={{ flex: "1 1 0", minWidth: 0, position: "sticky", top: "24px" }}>
+            <div
+              style={{
+                backgroundColor: "#000000",
+                borderRadius: "12px",
+                padding: "24px",
+                minHeight: "600px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {hologramVideoUrl ? (
+                <>
+                  {hologramType === "4sides" ? (
+                    /* 4방면 홀로그램 십자가 배치 */
+                    <div
+                      style={{
+                        width: "100%",
+                        maxWidth: "500px",
+                        aspectRatio: "1 / 1",
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr 1fr",
+                        gridTemplateRows: "1fr 1fr 1fr",
+                        gap: 0,
+                      }}
+                    >
+                      {/* 빈 공간 (좌상단) */}
+                      <div style={{ backgroundColor: "#000000" }} />
+
+                      {/* 상단: 180도 회전 */}
+                      <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
+                        <video
+                          src={hologramVideoUrl}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            objectPosition: "center",
+                            transform: `rotate(180deg) scale(${videoScale})`,
+                          }}
+                        />
+                      </div>
+
+                      {/* 빈 공간 (우상단) */}
+                      <div style={{ backgroundColor: "#000000" }} />
+
+                      {/* 좌측: 90도 회전 */}
+                      <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
+                        <video
+                          src={hologramVideoUrl}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            objectPosition: "center",
+                            transform: `rotate(90deg) scale(${videoScale})`,
+                          }}
+                        />
+                      </div>
+
+                      {/* 중앙 빈 공간 (피라미드 위치) */}
+                      <div style={{ backgroundColor: "#000000" }} />
+
+                      {/* 우측: 270도 회전 */}
+                      <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
+                        <video
+                          src={hologramVideoUrl}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            objectPosition: "center",
+                            transform: `rotate(270deg) scale(${videoScale})`,
+                          }}
+                        />
+                      </div>
+
+                      {/* 빈 공간 (좌하단) */}
+                      <div style={{ backgroundColor: "#000000" }} />
+
+                      {/* 하단: 0도 (원본) */}
+                      <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
+                        <video
+                          src={hologramVideoUrl}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            objectPosition: "center",
+                            transform: `rotate(0deg) scale(${videoScale})`,
+                          }}
+                        />
+                      </div>
+
+                      {/* 빈 공간 (우하단) */}
+                      <div style={{ backgroundColor: "#000000" }} />
+                    </div>
+                  ) : (
+                    /* 1면 홀로그램 (중앙 단일 화면) */
+                    <div
+                      style={{
+                        width: "100%",
+                        maxWidth: "500px",
+                        aspectRatio: "1 / 1",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        overflow: "hidden",
+                        backgroundColor: "#000000",
+                      }}
+                    >
+                      <video
+                        src={hologramVideoUrl}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "contain",
+                          objectPosition: "center",
+                          transform: `scale(${videoScale})`,
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* 스케일 조절 컨트롤 */}
+                  <div
+                    style={{
+                      marginTop: "24px",
+                      padding: "12px 16px",
+                      backgroundColor: "rgba(255, 255, 255, 0.1)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      borderRadius: "8px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                      minWidth: "200px",
+                    }}
+                  >
+                    <label
+                      style={{
+                        color: "#ffffff",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        textAlign: "center",
+                      }}
+                    >
+                      확대: {videoScale.toFixed(1)}x
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2.0"
+                      step="0.1"
+                      value={videoScale}
+                      onChange={(e) => setVideoScale(Number(e.target.value))}
+                      style={{
+                        width: "100%",
+                        cursor: "pointer",
+                        height: "6px",
+                      }}
+                    />
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontSize: "10px",
+                        color: "rgba(255, 255, 255, 0.6)",
+                      }}
+                    >
+                      <span>0.5x</span>
+                      <span>2.0x</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div
+                  style={{
+                    color: "#666666",
+                    fontSize: "16px",
+                    textAlign: "center",
+                  }}
+                >
+                  <p style={{ margin: 0, marginBottom: "8px" }}>
+                    영상이 생성되면 여기에 표시됩니다
+                  </p>
+                  <p style={{ margin: 0, fontSize: "14px", color: "#444444" }}>
+                    좌측에서 사진을 업로드하고 설정을 선택한 후<br />
+                    영상을 생성해주세요
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

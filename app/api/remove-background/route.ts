@@ -149,16 +149,16 @@ export async function POST(req: NextRequest) {
     // Supabase에 업로드
     const { createClient } = await import("@supabase/supabase-js");
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseSecretKey) {
       return NextResponse.json(
         { error: "Supabase 환경변수가 설정되지 않았습니다." },
         { status: 500 }
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseSecretKey);
     const bucket = "3D_hologram_images";
 
     // 기존 파일 목록 확인해서 다음 번호 계산
