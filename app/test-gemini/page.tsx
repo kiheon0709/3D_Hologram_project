@@ -57,7 +57,7 @@ export default function TestGeminiPage() {
           Gemini API 테스트
         </h1>
         <p style={{ fontSize: "16px", color: "#666666", marginBottom: "32px" }}>
-          Vercel OIDC 인증을 통한 Gemini API 호출 테스트 페이지입니다.
+          Gemini API 키를 사용한 Gemini API 호출 테스트 페이지입니다.
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -225,10 +225,10 @@ export default function TestGeminiPage() {
               💡 테스트 정보:
             </strong>
             <ul style={{ margin: 0, paddingLeft: "20px" }}>
-              <li>Vercel OIDC 토큰은 자동으로 헤더에 포함됩니다</li>
-              <li>Google STS API를 통해 액세스 토큰으로 교환됩니다</li>
-              <li>Gemini 1.5 Flash 모델을 사용합니다</li>
-              <li>에러 발생 시 Vercel 함수 로그를 확인하세요</li>
+              <li>GEMINI_API_KEY 환경 변수로 인증합니다</li>
+              <li>Gemini API (generativelanguage.googleapis.com)를 직접 호출합니다</li>
+              <li>기본 모델: gemini-1.5-flash (GEMINI_MODEL_ID로 변경 가능)</li>
+              <li>에러 발생 시 서버 로그를 확인하세요</li>
             </ul>
           </div>
         </div>

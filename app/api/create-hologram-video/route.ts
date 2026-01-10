@@ -1,36 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-export async function POST(req: NextRequest) {
-  try {
+// 모델 설정 (하드코딩 - 변경하려면 여기만 수정하면 됨)
+const REPLICATE_MODEL = "google/veo-3-fast"; // Replicate 모델 변경: google/veo-3-fast, google/veo-3 등
+const VEO_MODEL = "veo-3.1-generate-preview"; // Veo 모델 변경: veo-3.1-generate-preview, veo-3.1-fast-generate-preview 등
+
+/**
+ * Replicate를 사용한 비디오 생성
+ */
+async function createVideoWithReplicate(imageUrl: string, prompt: string): Promise<string> {
     if (!REPLICATE_API_TOKEN) {
-      return NextResponse.json(
-        { error: "REPLICATE_API_TOKEN이 설정되지 않았습니다." },
-        { status: 500 }
-      );
-    }
+    throw new Error("REPLICATE_API_TOKEN이 설정되지 않았습니다.");
+  }
 
-    const { imageUrl, prompt } = await req.json();
-    
-    if (!imageUrl) {
-      return NextResponse.json(
-        { error: "imageUrl이 필요합니다." },
-        { status: 400 }
-      );
-    }
+  console.log("Replicate로 홀로그램 영상 생성 시작:", { imageUrl, model: REPLICATE_MODEL });
 
-    if (!prompt) {
-      return NextResponse.json(
-        { error: "prompt가 필요합니다." },
-        { status: 400 }
-      );
-    }
-
-    console.log("홀로그램 영상 생성 시작:", { imageUrl, model: "google/veo-3-fast" });
-
-    // 1) Replicate에 영상 생성 요청 (모델 이름으로 latest 버전 사용)
-    const createRes = await fetch("https://api.replicate.com/v1/models/google/veo-3-fast/predictions", {
+  // 1) Replicate에 영상 생성 요청
+  const createRes = await fetch(`https://api.replicate.com/v1/models/${REPLICATE_MODEL}/predictions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -40,7 +28,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         input: {
           image: imageUrl,
-          last_frame: imageUrl, // 같은 이미지 사용
+        last_frame: imageUrl,
           prompt: prompt,
           aspect_ratio: "16:9",
           duration: 4,
@@ -52,12 +40,6 @@ export async function POST(req: NextRequest) {
 
     if (!createRes.ok) {
       const text = await createRes.text();
-      console.error("Replicate create error:", {
-        status: createRes.status,
-        statusText: createRes.statusText,
-        body: text,
-      });
-      
       let errorDetail = text;
       try {
         const jsonError = JSON.parse(text);
@@ -65,15 +47,7 @@ export async function POST(req: NextRequest) {
       } catch {
         // JSON 파싱 실패 시 원본 텍스트 사용
       }
-      
-      return NextResponse.json(
-        { 
-          error: "Replicate 요청 실패", 
-          detail: errorDetail,
-          status: createRes.status,
-        },
-        { status: 500 }
-      );
+    throw new Error(`Replicate 요청 실패: ${errorDetail}`);
     }
 
     let prediction = await createRes.json();
@@ -101,11 +75,7 @@ export async function POST(req: NextRequest) {
 
       if (!pollRes.ok) {
         const text = await pollRes.text();
-        console.error("Polling error:", text);
-        return NextResponse.json(
-          { error: "영상 생성 상태 확인 실패", detail: text },
-          { status: 500 }
-        );
+      throw new Error(`영상 생성 상태 확인 실패: ${text}`);
       }
 
       prediction = await pollRes.json();
@@ -113,21 +83,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (pollCount >= maxPolls) {
-      return NextResponse.json(
-        { error: "영상 생성 시간 초과", detail: "최대 대기 시간을 초과했습니다." },
-        { status: 500 }
-      );
+    throw new Error("영상 생성 시간 초과: 최대 대기 시간을 초과했습니다.");
     }
 
     if (prediction.status !== "succeeded") {
-      console.error("Replicate failed prediction:", prediction);
-      return NextResponse.json(
-        {
-          error: "영상 생성에 실패했습니다.",
-          detail: prediction.error || prediction,
-        },
-        { status: 500 }
-      );
+    throw new Error(`영상 생성에 실패했습니다: ${prediction.error || JSON.stringify(prediction)}`);
     }
 
     // 3) 결과 영상 URL 추출
@@ -136,24 +96,178 @@ export async function POST(req: NextRequest) {
       typeof output === "string" ? output : Array.isArray(output) ? output[0] : null;
 
     if (!videoUrl) {
-      console.error("Unexpected output format:", output);
-      return NextResponse.json(
-        { error: "영상 생성 결과 형식이 예상과 다릅니다.", detail: output },
-        { status: 500 }
-      );
+    throw new Error(`영상 생성 결과 형식이 예상과 다릅니다: ${JSON.stringify(output)}`);
+  }
+
+  console.log("Replicate 영상 생성 완료, 결과 URL:", videoUrl);
+  return videoUrl;
+}
+
+/**
+ * Veo (Gemini API)를 사용한 비디오 생성
+ */
+async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<string> {
+  if (!GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY가 설정되지 않았습니다.");
+  }
+
+  console.log("Veo로 홀로그램 영상 생성 시작:", { imageUrl, model: VEO_MODEL });
+
+  // 1) 이미지를 base64로 변환
+  const imageResponse = await fetch(imageUrl);
+  if (!imageResponse.ok) {
+    throw new Error(`이미지 다운로드 실패: ${imageResponse.status}`);
+  }
+  const imageBuffer = await imageResponse.arrayBuffer();
+  const imageBase64 = Buffer.from(imageBuffer).toString("base64");
+  const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
+
+  // 2) Veo API로 비디오 생성 요청 (공식 문서 형식)
+  const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+  const modelId = VEO_MODEL;
+  
+  const createRes = await fetch(
+    `${BASE_URL}/models/${modelId}:generateVideos?key=${GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        image: {
+          data: imageBase64,
+          mimeType: mimeType,
+        },
+        config: {
+          lastFrame: {
+            data: imageBase64,
+            mimeType: mimeType,
+          },
+          aspectRatio: "16:9",
+          resolution: "720p",
+          durationSeconds: "4",
+        },
+      }),
+    }
+  );
+
+  if (!createRes.ok) {
+    const errorText = await createRes.text();
+    let errorDetail;
+    try {
+      errorDetail = JSON.parse(errorText);
+    } catch {
+      errorDetail = { message: errorText };
+    }
+    throw new Error(`Veo API 요청 실패: ${errorDetail.error?.message || errorDetail.message || errorText}`);
+  }
+
+  const operation = await createRes.json();
+  
+  // generateVideos 엔드포인트는 long-running operation을 반환
+  // 응답이 operation 객체인지 확인
+  if (!operation.name && !operation.done) {
+    // operation 객체가 아닌 경우, 직접 결과를 반환했을 수 있음
+    const directResult = operation.generatedVideos?.[0]?.video;
+    if (directResult?.uri || directResult?.url) {
+      const videoUri = directResult.uri || directResult.url;
+      console.log("Veo 영상 생성 완료 (직접 반환), 결과 URI:", videoUri);
+      return videoUri.startsWith("http") ? videoUri : `https://storage.googleapis.com/${videoUri}`;
+    }
+    throw new Error(`Veo API 응답 형식이 예상과 다릅니다: ${JSON.stringify(operation)}`);
+  }
+
+  const operationName = operation.name;
+  
+  if (!operationName) {
+    throw new Error(`Veo API 응답에 operation name이 없습니다: ${JSON.stringify(operation)}`);
+  }
+
+  console.log("Veo operation 생성됨:", operationName);
+
+  // 3) 작업 완료까지 폴링
+  let pollCount = 0;
+  const maxPolls = 120; // 최대 40분 (20초 * 120)
+  
+  let currentOperation = operation;
+  
+  while (!currentOperation.done && pollCount < maxPolls) {
+    await new Promise((r) => setTimeout(r, 20000)); // 20초 대기 (Veo는 더 오래 걸림)
+    pollCount++;
+
+    // operation name이 전체 경로인지, 상대 경로인지 확인
+    const pollUrl = operationName.startsWith("operations/") 
+      ? `${BASE_URL}/${operationName}?key=${GEMINI_API_KEY}`
+      : `${BASE_URL}/operations/${operationName}?key=${GEMINI_API_KEY}`;
+
+    const pollRes = await fetch(pollUrl, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!pollRes.ok) {
+      const errorText = await pollRes.text();
+      throw new Error(`Veo 작업 상태 확인 실패: ${errorText}`);
     }
 
-    console.log("영상 생성 완료, 결과 URL:", videoUrl);
+    currentOperation = await pollRes.json();
+    const progress = currentOperation.metadata?.progress || 0;
+    console.log(`Veo 작업 상태 (${pollCount}/${maxPolls}): 진행률 ${(progress * 100).toFixed(1)}%`);
+  }
 
-    // 4) 결과 영상을 다운로드해서 Supabase에 저장
-    console.log("Replicate 결과 영상 다운로드 시작...");
+  if (pollCount >= maxPolls) {
+    throw new Error("Veo 영상 생성 시간 초과: 최대 대기 시간을 초과했습니다.");
+  }
+
+  if (currentOperation.error) {
+    throw new Error(`Veo 영상 생성에 실패했습니다: ${JSON.stringify(currentOperation.error)}`);
+  }
+
+  // 4) 결과 영상 URI 추출
+  // 공식 문서에 따르면 여러 형식이 가능:
+  // - response.generateVideoResponse.generatedVideos[0].video.uri
+  // - response.generateVideoResponse.generatedSamples[0].video.uri
+  // - response.generatedVideos[0].video.uri
+  const response = currentOperation.response || {};
+  const generateVideoResponse = response.generateVideoResponse || {};
+  const generatedVideos = generateVideoResponse.generatedVideos || 
+                          generateVideoResponse.generatedSamples || 
+                          response.generatedVideos || 
+                          [];
+  
+  const videoData = generatedVideos[0]?.video || generatedVideos[0];
+  const videoUri = videoData?.uri || videoData?.url;
+  
+  if (!videoUri) {
+    console.error("Veo 응답 전체:", JSON.stringify(currentOperation, null, 2));
+    throw new Error(`Veo 영상 생성 결과 형식이 예상과 다릅니다: ${JSON.stringify(currentOperation.response)}`);
+  }
+
+  console.log("Veo 영상 생성 완료, 결과 URI:", videoUri);
+
+  // 5) Google Cloud Storage URI 다운로드
+  // gs:// 형식이면 Files API를 통해 다운로드, https:// 형식이면 직접 사용
+  if (videoUri.startsWith("gs://")) {
+    // gs:// 형식은 Files API를 사용해야 함
+    // 일단 에러를 던지고, 실제 구현은 나중에 추가
+    throw new Error(`GCS URI는 아직 지원하지 않습니다. URI: ${videoUri}`);
+  }
+
+  // https:// 형식이면 그대로 반환 (다음 단계에서 다운로드)
+  return videoUri;
+}
+
+/**
+ * 비디오를 다운로드하고 Supabase에 업로드
+ */
+async function downloadAndUploadVideo(videoUrl: string, platform: string): Promise<string> {
+  console.log(`${platform} 결과 영상 다운로드 시작:`, videoUrl);
+  
     const videoRes = await fetch(videoUrl);
     if (!videoRes.ok) {
-      console.error("영상 다운로드 실패:", videoRes.status, videoRes.statusText);
-      return NextResponse.json(
-        { error: "생성된 영상 다운로드 실패", detail: `Status: ${videoRes.status}` },
-        { status: 500 }
-      );
+    throw new Error(`영상 다운로드 실패: ${videoRes.status} ${videoRes.statusText}`);
     }
     console.log("영상 다운로드 완료");
 
@@ -166,10 +280,7 @@ export async function POST(req: NextRequest) {
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      return NextResponse.json(
-        { error: "Supabase 환경변수가 설정되지 않았습니다." },
-        { status: 500 }
-      );
+    throw new Error("Supabase 환경변수가 설정되지 않았습니다.");
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -201,7 +312,7 @@ export async function POST(req: NextRequest) {
     const fileName = `${nextIndex}.mp4`;
     const filePath = `veo_video/${fileName}`;
 
-    console.log("Supabase 업로드 시작:", { filePath, fileSize: videoBlob.size });
+  console.log("Supabase 업로드 시작:", { filePath, fileSize: videoBlob.size, platform });
 
     // File 객체로 변환
     const file = new File([videoBlob], fileName, { type: "video/mp4" });
@@ -215,13 +326,7 @@ export async function POST(req: NextRequest) {
 
     if (uploadError) {
       console.error("Supabase 업로드 오류:", uploadError);
-      return NextResponse.json(
-        {
-          error: "Supabase에 영상 저장 실패",
-          detail: uploadError.message || JSON.stringify(uploadError),
-        },
-        { status: 500 }
-      );
+    throw new Error(`Supabase에 영상 저장 실패: ${uploadError.message || JSON.stringify(uploadError)}`);
     }
 
     console.log("Supabase 업로드 성공:", uploadData);
@@ -231,23 +336,93 @@ export async function POST(req: NextRequest) {
       .from(bucket)
       .getPublicUrl(filePath);
 
-    console.log("홀로그램 영상 생성 완료 및 Supabase 저장 완료:", publicData.publicUrl);
+  console.log(`홀로그램 영상 생성 완료 (${platform}) 및 Supabase 저장 완료:`, publicData.publicUrl);
+
+  return publicData.publicUrl;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const { imageUrl, prompt, platform = "replicate" } = await req.json();
+    
+    if (!imageUrl) {
+      return NextResponse.json(
+        { error: "imageUrl이 필요합니다." },
+        { status: 400 }
+      );
+    }
+
+    if (!prompt) {
+      return NextResponse.json(
+        { error: "prompt가 필요합니다." },
+        { status: 400 }
+      );
+    }
+
+    if (platform !== "replicate" && platform !== "veo") {
+      return NextResponse.json(
+        { error: "platform은 'replicate' 또는 'veo'여야 합니다." },
+        { status: 400 }
+      );
+    }
+
+    console.log("홀로그램 영상 생성 시작:", { imageUrl, platform, prompt: prompt.substring(0, 50) + "..." });
+
+    // 플랫폼에 따라 비디오 생성
+    let videoUrl: string;
+    try {
+      if (platform === "veo") {
+        videoUrl = await createVideoWithVeo(imageUrl, prompt);
+      } else {
+        videoUrl = await createVideoWithReplicate(imageUrl, prompt);
+      }
+    } catch (err: any) {
+      console.error(`${platform} 영상 생성 오류:`, err);
+      return NextResponse.json(
+        {
+          error: `${platform === "veo" ? "Veo" : "Replicate"} 영상 생성 실패`,
+          detail: err.message || String(err),
+        },
+        { status: 500 }
+      );
+    }
+
+    console.log("영상 생성 완료, 다운로드 및 업로드 시작:", videoUrl);
+
+    // 다운로드하고 Supabase에 업로드
+    let finalVideoUrl: string;
+    try {
+      finalVideoUrl = await downloadAndUploadVideo(videoUrl, platform);
+    } catch (err: any) {
+      console.error("비디오 다운로드/업로드 오류:", err);
+      return NextResponse.json(
+        {
+          error: "비디오 다운로드 또는 업로드 실패",
+          detail: err.message || String(err),
+        },
+        { status: 500 }
+      );
+    }
+
+    // 파일명 추출
+    const fileName = finalVideoUrl.split("/").pop() || "video.mp4";
+    const filePath = `veo_video/${fileName}`;
 
     return NextResponse.json({
       success: true,
-      videoUrl: publicData.publicUrl,
+      videoUrl: finalVideoUrl,
       fileName,
       filePath,
+      platform,
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("API /create-hologram-video 오류:", err);
     return NextResponse.json(
       {
         error: "서버 내부 오류",
-        detail: err instanceof Error ? err.message : String(err),
+        detail: err.message || String(err),
       },
       { status: 500 }
     );
   }
 }
-

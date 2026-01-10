@@ -36,6 +36,7 @@ export default function MakePage() {
   const [skipBackgroundRemoval, setSkipBackgroundRemoval] = useState<boolean>(false);
   const [userPrompt, setUserPrompt] = useState<string>("");
   const [hologramType, setHologramType] = useState<"4sides" | "1side">("1side");
+  const [videoPlatform, setVideoPlatform] = useState<"replicate" | "veo">("replicate");
 
   // 이미지 orientation 정규화 함수 (EXIF 정보 기반으로 올바른 방향으로 회전)
   const normalizeImageOrientation = (file: File): Promise<File> => {
@@ -288,10 +289,11 @@ export default function MakePage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ 
-          imageUrl: imageUrl,
-          prompt: prompt
-        }),
+      body: JSON.stringify({ 
+        imageUrl: imageUrl,
+        prompt: prompt,
+        platform: videoPlatform
+      }),
       });
 
       const videoData = await videoRes.json();
@@ -579,6 +581,45 @@ export default function MakePage() {
                 {hologramType === "4sides" 
                   ? "4방면 홀로그램 피라미드용 (상하좌우 4개 화면)" 
                   : "단일 화면용 (중앙 1개 화면)"}
+              </p>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: "14px", fontWeight: 600, marginBottom: "12px", color: "#000000" }}>
+                비디오 생성 플랫폼
+              </label>
+              <div style={{ display: "flex", gap: "24px", marginBottom: "8px" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    name="videoPlatform"
+                    value="replicate"
+                    checked={videoPlatform === "replicate"}
+                    onChange={(e) => setVideoPlatform(e.target.value as "replicate" | "veo")}
+                    style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                  />
+                  <span style={{ fontSize: "14px", color: "#000000" }}>
+                    Replicate (Veo-3-Fast)
+                  </span>
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    name="videoPlatform"
+                    value="veo"
+                    checked={videoPlatform === "veo"}
+                    onChange={(e) => setVideoPlatform(e.target.value as "replicate" | "veo")}
+                    style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                  />
+                  <span style={{ fontSize: "14px", color: "#000000" }}>
+                    Veo (Gemini API 직접)
+                  </span>
+                </label>
+              </div>
+              <p style={{ fontSize: "12px", color: "#666666", margin: 0 }}>
+                {videoPlatform === "replicate" 
+                  ? "Replicate를 통해 Veo 모델 사용 (빠름, 유료)" 
+                  : "Gemini API를 통해 Veo 직접 사용 (공식 API, 테스트용)"}
               </p>
             </div>
 
