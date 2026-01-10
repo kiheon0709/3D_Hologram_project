@@ -73,7 +73,7 @@ async function getGoogleAccessToken(oidcToken: string): Promise<string> {
     if (errorMessage.includes("audience") || errorMessage.includes("Invalid value")) {
       errorMessage += `\n\n현재 audience 값: ${audience}\n` +
         `올바른 형식: //iam.googleapis.com/projects/{PROJECT_NUMBER}/locations/global/workloadIdentityPools/{POOL_ID}/providers/{PROVIDER_ID}\n` +
-        `환경 변수 GOOGLE_WIF_AUDIENCE에 전체 리소스 이름을 설정하거나,\n` +
+        `환경 변수 ㅎGOOGLE_WIF_AUDIENCE에 전체 리소스 이름을 설정하거나,\n` +
         `GOOGLE_PROJECT_NUMBER, GOOGLE_WIF_POOL_ID, GOOGLE_WIF_PROVIDER_ID를 개별 설정하세요.`;
     }
     
@@ -104,8 +104,8 @@ async function callGeminiAPI(
 ): Promise<any> {
   const projectId = process.env.GOOGLE_PROJECT_ID;
   const location = process.env.GOOGLE_LOCATION || "us-central1";
-  // Gemini 모델 ID (버전 suffix 없이 사용)
-  const modelId = process.env.GEMINI_MODEL_ID || "gemini-1.5-flash";
+  // Gemini 모델 ID
+  const modelId = process.env.GEMINI_MODEL_ID || "gemini-2.0-flash-001";
 
   if (!projectId) {
     throw new Error("GOOGLE_PROJECT_ID 환경변수가 설정되지 않았습니다.");
