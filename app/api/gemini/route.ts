@@ -95,7 +95,8 @@ async function getGoogleAccessToken(oidcToken: string): Promise<string> {
 }
 
 /**
- * Gemini API 호출
+ * Gemini API 호출 (Publisher Model generateContent API 사용)
+ * 참고: Gemini는 Vertex AI Endpoint가 아닌 Publisher Model 전용 API를 사용합니다.
  */
 async function callGeminiAPI(
   accessToken: string,
@@ -103,12 +104,29 @@ async function callGeminiAPI(
 ): Promise<any> {
   const projectId = process.env.GOOGLE_PROJECT_ID;
   const location = process.env.GOOGLE_LOCATION || "us-central1";
+  const modelId = process.env.GEMINI_MODEL_ID || "gemini-1.5-flash-001"; // 전체 모델 ID 사용
 
   if (!projectId) {
     throw new Error("GOOGLE_PROJECT_ID 환경변수가 설정되지 않았습니다.");
   }
 
-  const apiUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/gemini-1.5-flash:generateContent`;
+  // Publisher Model generateContent API 엔드포인트
+  // 형식: https://{location}-aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent
+  const apiUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${modelId}:generateContent`;
+
+  console.log("Gemini API 호출:", { apiUrl, modelId, location });
+
+  const requestBody = {
+    contents: [
+      {
+        parts: [
+          {
+            text: prompt,
+          },
+        ],
+      },
+    ],
+  };
 
   const response = await fetch(apiUrl, {
     method: "POST",
@@ -116,17 +134,7 @@ async function callGeminiAPI(
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            {
-              text: prompt,
-            },
-          ],
-        },
-      ],
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -138,14 +146,26 @@ async function callGeminiAPI(
       errorDetail = { message: errorText };
     }
 
+    const errorMessage = errorDetail.error?.message || errorDetail.message || `HTTP ${response.status}: ${response.statusText}`;
+    
+    console.error("Gemini API 호출 실패:", {
+      status: response.status,
+      statusText: response.statusText,
+      error: errorDetail,
+      apiUrl,
+    });
+
     throw {
       status: response.status,
-      message: errorDetail.error?.message || errorDetail.message || `HTTP ${response.status}: ${response.statusText}`,
+      message: errorMessage,
       details: errorDetail,
+      apiUrl, // 디버깅을 위해 URL 포함
     };
   }
 
-  return await response.json();
+  const result = await response.json();
+  console.log("Gemini API 호출 성공");
+  return result;
 }
 
 export async function POST(req: NextRequest) {
