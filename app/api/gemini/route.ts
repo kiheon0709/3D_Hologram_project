@@ -109,14 +109,36 @@ async function callGeminiAPI(
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. OIDC 토큰 가져오기
-    const oidcToken = req.headers.get("x-vercel-oidc-token");
+    // 1. OIDC 토큰 가져오기 (여러 가능한 헤더 이름 시도)
+    const oidcToken = 
+      req.headers.get("x-vercel-oidc-token") ||
+      req.headers.get("vercel-oidc-token") ||
+      req.headers.get("x-vercel-oidc-id-token") ||
+      process.env.VERCEL_OIDC_TOKEN; // 환경 변수에서도 확인
+    
+    // 디버깅: 관련 헤더 확인
+    const allHeaders = Object.fromEntries(req.headers.entries());
+    const vercelRelatedHeaders = Object.keys(allHeaders).filter(key => 
+      key.toLowerCase().includes("vercel") || key.toLowerCase().includes("oidc")
+    );
+    
+    console.log("Vercel 관련 헤더:", vercelRelatedHeaders);
+    console.log("OIDC 토큰 존재:", !!oidcToken);
+    console.log("환경 변수 설정:", {
+      hasProjectId: !!process.env.GOOGLE_PROJECT_ID,
+      hasLocation: !!process.env.GOOGLE_LOCATION,
+      hasWifAudience: !!process.env.GOOGLE_WIF_AUDIENCE,
+    });
     
     if (!oidcToken) {
       return NextResponse.json(
         { 
-          error: "x-vercel-oidc-token 헤더가 없습니다.",
-          message: "Vercel OIDC 토큰이 제공되지 않았습니다."
+          error: "OIDC 토큰을 찾을 수 없습니다.",
+          message: "Vercel OIDC 토큰이 제공되지 않았습니다. Vercel 환경에서 실행 중인지 확인하세요.",
+          debug: {
+            availableHeaders: vercelRelatedHeaders,
+            allHeaderKeys: Object.keys(allHeaders).slice(0, 10), // 처음 10개만
+          }
         },
         { status: 401 }
       );
