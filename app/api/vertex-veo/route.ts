@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAccessToken } from '@/lib/googleAuth';
+import { getAccessToken } from '@/lib/googleAuth-unified';
 
 /**
  * Vertex AI Veo API를 사용한 비디오 생성

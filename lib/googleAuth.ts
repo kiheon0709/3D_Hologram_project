@@ -8,7 +8,7 @@ import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 
 /**
  * Vercel OIDC 토큰을 가져옵니다.
- * Vercel은 여러 방식으로 OIDC 토큰을 제공할 수 있습니다.
+ * Vercel은 런타임 메타데이터 서비스를 통해 OIDC 토큰을 제공합니다.
  */
 async function getVercelOidcToken(): Promise<string> {
   // 방법 1: VERCEL_OIDC_TOKEN 환경변수 (직접 설정한 경우)
@@ -16,7 +16,41 @@ async function getVercelOidcToken(): Promise<string> {
     return process.env.VERCEL_OIDC_TOKEN;
   }
 
-  // 방법 2: AWS Web Identity Token (Vercel은 AWS에서 실행됨)
+  // 방법 2: Vercel 런타임 메타데이터 서비스 (권장)
+  // Vercel은 AWS Lambda처럼 런타임에 토큰을 제공합니다
+  try {
+    // Vercel의 내부 메타데이터 엔드포인트
+    const metadataEndpoints = [
+      'http://169.254.169.254/latest/meta-data/iam/security-credentials/', // AWS IMDS
+      'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token', // GCP
+    ];
+
+    for (const endpoint of metadataEndpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          headers: endpoint.includes('google') 
+            ? { 'Metadata-Flavor': 'Google' }
+            : {},
+          signal: AbortSignal.timeout(1000), // 1초 타임아웃
+        });
+        
+        if (response.ok) {
+          const data = await response.text();
+          if (data && data.length > 10) {
+            console.log('✅ 메타데이터 서비스에서 토큰 획득:', endpoint);
+            return data.trim();
+          }
+        }
+      } catch (error) {
+        // 이 엔드포인트는 실패할 수 있음, 다음으로 계속
+        continue;
+      }
+    }
+  } catch (error) {
+    console.warn('메타데이터 서비스 접근 실패:', error);
+  }
+
+  // 방법 3: AWS Web Identity Token File
   if (process.env.AWS_WEB_IDENTITY_TOKEN_FILE) {
     try {
       const fs = await import('fs');
@@ -27,14 +61,32 @@ async function getVercelOidcToken(): Promise<string> {
     }
   }
 
-  // 방법 3: Vercel OIDC 엔드포인트에서 동적으로 가져오기
+  // 방법 4: Vercel의 공식 OIDC 엔드포인트
   const vercelUrl = process.env.VERCEL_URL;
   if (vercelUrl) {
     try {
-      const response = await fetch(`https://${vercelUrl}/.well-known/oidc-configuration`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.token) return data.token;
+      // Vercel의 OIDC 토큰 엔드포인트 시도
+      const oidcEndpoints = [
+        `https://${vercelUrl}/.well-known/vercel-oidc-token`,
+        `https://oidc.vercel.com/token`,
+      ];
+
+      for (const endpoint of oidcEndpoints) {
+        try {
+          const response = await fetch(endpoint, {
+            signal: AbortSignal.timeout(2000),
+          });
+          
+          if (response.ok) {
+            const data = await response.text();
+            if (data && data.length > 10) {
+              console.log('✅ Vercel OIDC 엔드포인트에서 토큰 획득:', endpoint);
+              return data.trim();
+            }
+          }
+        } catch (error) {
+          continue;
+        }
       }
     } catch (error) {
       console.warn('Vercel OIDC 엔드포인트 호출 실패:', error);
@@ -42,11 +94,16 @@ async function getVercelOidcToken(): Promise<string> {
   }
 
   throw new Error(
-    'Vercel OIDC 토큰을 가져올 수 없습니다.\n' +
-    '다음 중 하나를 확인하세요:\n' +
-    '1. Vercel 프로젝트에서 OIDC가 활성화되어 있는지\n' +
-    '2. VERCEL_OIDC_TOKEN 환경변수를 수동으로 설정했는지\n' +
-    '3. Vercel의 최신 배포인지'
+    'Vercel OIDC 토큰을 가져올 수 없습니다.\n\n' +
+    '🔧 해결 방법:\n' +
+    '1. Vercel 대시보드 > Settings > General에서 "OIDC Token" 활성화\n' +
+    '2. 또는 VERCEL_OIDC_TOKEN 환경변수를 수동으로 설정\n' +
+    '3. 또는 Service Account JSON 키를 사용하는 방식으로 전환\n\n' +
+    '현재 시도한 방법:\n' +
+    '- 환경변수: VERCEL_OIDC_TOKEN ❌\n' +
+    '- AWS 메타데이터 서비스 ❌\n' +
+    '- AWS Web Identity Token File ❌\n' +
+    '- Vercel OIDC 엔드포인트 ❌'
   );
 }
 

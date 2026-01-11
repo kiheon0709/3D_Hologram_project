@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { testAuthentication } from '@/lib/googleAuth';
+import { testAuthentication } from '@/lib/googleAuth-unified';
 
 /**
  * WIF 인증 테스트 API
