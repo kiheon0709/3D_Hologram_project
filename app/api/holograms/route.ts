@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 
 /**
  * 작품 목록 조회 API
  */
 export async function GET(req: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    if (!supabaseUrl || !supabaseSecretKey) {
+      console.error("Supabase 환경변수가 설정되지 않았습니다.", {
+        supabaseUrl: !!supabaseUrl,
+        supabaseSecretKey: !!supabaseSecretKey,
+      });
+      return NextResponse.json(
+        { error: "Supabase 환경변수가 설정되지 않았습니다." },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseSecretKey);
 
     // 현재 로그인된 사용자 확인 (향후 인증 구현 시 사용)
     // const { data: { user } } = await supabase.auth.getUser();
@@ -46,7 +57,18 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    if (!supabaseUrl || !supabaseSecretKey) {
+      console.error("Supabase 환경변수가 설정되지 않았습니다.", {
+        supabaseUrl: !!supabaseUrl,
+        supabaseSecretKey: !!supabaseSecretKey,
+      });
+      return NextResponse.json(
+        { error: "Supabase 환경변수가 설정되지 않았습니다." },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseSecretKey);
     
     const body = await req.json();
     const {

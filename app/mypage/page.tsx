@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
 
 type Hologram = {
   id: string;
@@ -18,13 +21,35 @@ type Hologram = {
 };
 
 export default function MyPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [holograms, setHolograms] = useState<Hologram[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedHologram, setSelectedHologram] = useState<Hologram | null>(null);
 
   useEffect(() => {
-    loadHolograms();
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setIsCheckingAuth(false);
+      
+      if (session?.user) {
+        loadHolograms();
+      }
+    };
+    checkAuth();
+
+    // 인증 상태 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        loadHolograms();
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const loadHolograms = async () => {
@@ -56,6 +81,53 @@ export default function MyPage() {
     });
   };
 
+  // 로그인 확인 중
+  if (isCheckingAuth || (loading && user)) {
+    return (
+      <main style={{ minHeight: "calc(100vh - 64px)", padding: "24px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <p style={{ fontSize: "16px", color: "#666666" }}>
+            {isCheckingAuth ? "로그인 확인 중..." : "작품을 불러오는 중..."}
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // 로그인하지 않은 경우
+  if (!user) {
+    return (
+      <main style={{ minHeight: "calc(100vh - 64px)", padding: "24px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center", maxWidth: "500px" }}>
+          <h1 style={{ fontSize: "32px", fontWeight: 700, marginBottom: "16px", color: "#000000" }}>
+            로그인이 필요합니다
+          </h1>
+          <p style={{ fontSize: "16px", color: "#666666", marginBottom: "32px" }}>
+            내 작품은 로그인한 사용자만 볼 수 있습니다.
+          </p>
+          <button
+            onClick={() => router.push("/")}
+            style={{
+              padding: "12px 24px",
+              fontSize: "16px",
+              fontWeight: 600,
+              backgroundColor: "#000000",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              transition: "opacity 0.2s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+          >
+            홈으로 이동
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main style={{ minHeight: "calc(100vh - 64px)", padding: "48px 24px" }}>
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
@@ -67,12 +139,6 @@ export default function MyPage() {
             생성한 홀로그램 작품을 확인하고 관리하세요.
           </p>
         </div>
-
-        {loading && (
-          <div style={{ textAlign: "center", padding: "48px", color: "#666666" }}>
-            작품을 불러오는 중...
-          </div>
-        )}
 
         {error && (
           <div

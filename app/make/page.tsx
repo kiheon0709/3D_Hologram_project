@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, ChangeEvent } from "react";
+import { useState, ChangeEvent, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import EXIF from "exif-js";
 import { createHologramPrompt } from "@/prompts/hologram";
+import { useRouter } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
 
 type DevicePreset = {
   id: string;
@@ -22,6 +24,9 @@ const DEVICE_PRESETS: DevicePreset[] = [
 ];
 
 export default function MakePage() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [deviceId, setDeviceId] = useState<string>("default");
   const [isUploading, setIsUploading] = useState<boolean>(false);
@@ -37,6 +42,23 @@ export default function MakePage() {
   const [userPrompt, setUserPrompt] = useState<string>("");
   const [hologramType, setHologramType] = useState<"4sides" | "1side">("1side");
   const [videoPlatform, setVideoPlatform] = useState<"replicate" | "veo">("replicate");
+
+  // 로그인 확인
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setIsCheckingAuth(false);
+    };
+    checkAuth();
+
+    // 인증 상태 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // 이미지 orientation 정규화 함수 (EXIF 정보 기반으로 올바른 방향으로 회전)
   const normalizeImageOrientation = (file: File): Promise<File> => {
@@ -156,16 +178,21 @@ export default function MakePage() {
         return null;
       }
 
+      // 현재 유저 ID 가져오기
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || null;
+
       const bucket = "3D_hologram_images"; // Supabase에서 사용 중인 버킷 이름
       const ext = file.name.split(".").pop() || "jpg";
 
       console.log("업로드 시작:", {
         bucket,
         fileName: file.name,
-        fileSize: file.size
+        fileSize: file.size,
+        userId: userId ? userId.substring(0, 8) : "anonymous"
       });
 
-      // 현재 user_images 폴더에 있는 파일 목록을 보고 다음 번호를 계산
+      // 현재 user_images 폴더에 있는 파일 목록을 보고 해당 유저의 다음 번호를 계산
       const { data: existingFiles, error: listError } = await supabase.storage
         .from(bucket)
         .list("user_images", {
@@ -183,25 +210,36 @@ export default function MakePage() {
         return null;
       }
 
-      let nextIndex = 1;
-      if (existingFiles && existingFiles.length > 0) {
-        const numericNames = existingFiles
-          .map((f) => {
-            const base = f.name.split(".")[0];
-            const num = Number(base);
-            return Number.isNaN(num) ? null : num;
-          })
-          .filter((n): n is number => n !== null);
+      // 파일명 생성: {user_id}_{번호}.{확장자} 또는 anonymous_{timestamp}.{확장자}
+      let fileName: string;
+      if (userId) {
+        // 로그인한 사용자: 해당 유저의 파일만 필터링해서 번호 계산
+        const prefix = `${userId}_`;
+        const userFiles = existingFiles?.filter(f => f.name.startsWith(prefix)) || [];
+        
+        let nextIndex = 1;
+        if (userFiles.length > 0) {
+          const numericNames = userFiles
+            .map((f) => {
+              const base = f.name.replace(prefix, "").split(".")[0];
+              const num = Number(base);
+              return Number.isNaN(num) ? null : num;
+            })
+            .filter((n): n is number => n !== null);
 
-        if (numericNames.length > 0) {
-          nextIndex = Math.max(...numericNames) + 1;
+          if (numericNames.length > 0) {
+            nextIndex = Math.max(...numericNames) + 1;
+          }
         }
+        fileName = `${userId}_${nextIndex}.${ext}`;
+      } else {
+        // 로그인하지 않은 사용자: 타임스탬프 사용
+        fileName = `anonymous_${Date.now()}.${ext}`;
       }
 
-      const fileName = `${nextIndex}.${ext}`;
       const filePath = `user_images/${fileName}`;
 
-      console.log("업로드 시도:", { filePath, nextIndex });
+      console.log("업로드 시도:", { filePath, fileName });
 
       // 이미지 orientation 정규화 (회전 문제 해결)
       const normalizedFile = await normalizeImageOrientation(file);
@@ -284,10 +322,19 @@ export default function MakePage() {
     const prompt = createHologramPrompt(userPrompt);
 
     try {
+      // 현재 유저 세션 토큰 가져오기
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setUploadMessage("❌ 로그인이 필요합니다.");
+        setIsCreatingVideo(false);
+        return false;
+      }
+
       const videoRes = await fetch("/api/create-hologram-video", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
         },
       body: JSON.stringify({ 
         imageUrl: imageUrl,
@@ -391,12 +438,17 @@ export default function MakePage() {
     setUploadMessage("배경 제거 중...");
 
     try {
+      // 현재 유저 세션 토큰 가져오기
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || null;
+
       const removeBgRes = await fetch("/api/remove-background", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(session ? { "Authorization": `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify({ imageUrl }),
+        body: JSON.stringify({ imageUrl, userId }),
       });
 
       const removeBgData = await removeBgRes.json();
@@ -432,44 +484,7 @@ export default function MakePage() {
       return;
     }
 
-    // 배경 제거된 이미지가 있으면 그것을 사용, 없으면 원본 사용
-    let imageUrl: string;
-    
-    if (removedBackgroundUrl) {
-      // 배경 제거된 이미지 사용
-      imageUrl = removedBackgroundUrl;
-      console.log("배경 제거된 이미지로 영상 생성:", imageUrl);
-    } else if (skipBackgroundRemoval) {
-      // 배경 제거 건너뛰기 옵션이 체크되어 있으면 원본 사용
-      // 업로드가 안 되어 있으면 먼저 업로드
-      let imagePath = uploadedImagePath;
-      if (!imagePath) {
-        setIsUploading(true);
-        setUploadMessage("사진 업로드 중...");
-        imagePath = await uploadImageToSupabase(selectedFile);
-        setIsUploading(false);
-        
-        if (!imagePath) {
-          setUploadMessage("❌ 사진 업로드에 실패했습니다.");
-          return;
-        }
-      }
-      
-      const bucket = "3D_hologram_images";
-      const { data: publicData } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(imagePath);
-      imageUrl = publicData.publicUrl;
-      console.log("원본 이미지로 영상 생성:", imageUrl);
-    } else {
-      setUploadMessage("❌ 배경 제거를 먼저 실행하거나 '배경 제거 건너뛰기' 옵션을 체크해주세요.");
-      return;
-    }
-
-    setUploadMessage("홀로그램 영상 생성 중...");
-    
-    // 원본 이미지 URL도 함께 전달 (DB 저장용)
-    // uploadedImagePath가 없으면 먼저 업로드
+    // 원본 이미지가 업로드되어 있지 않으면 먼저 업로드
     let originalImagePath = uploadedImagePath;
     if (!originalImagePath) {
       setIsUploading(true);
@@ -482,6 +497,28 @@ export default function MakePage() {
         return;
       }
     }
+
+    // 배경 제거된 이미지가 있으면 그것을 사용, 없으면 원본 사용
+    let imageUrl: string;
+    
+    if (removedBackgroundUrl) {
+      // 배경 제거된 이미지 사용
+      imageUrl = removedBackgroundUrl;
+      console.log("배경 제거된 이미지로 영상 생성:", imageUrl);
+    } else if (skipBackgroundRemoval) {
+      // 배경 제거 건너뛰기 옵션이 체크되어 있으면 원본 사용
+      const bucket = "3D_hologram_images";
+      const { data: publicData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(originalImagePath);
+      imageUrl = publicData.publicUrl;
+      console.log("원본 이미지로 영상 생성:", imageUrl);
+    } else {
+      setUploadMessage("❌ 배경 제거를 먼저 실행하거나 '배경 제거 건너뛰기' 옵션을 체크해주세요.");
+      return;
+    }
+
+    setUploadMessage("홀로그램 영상 생성 중...");
     
     const bucket = "3D_hologram_images";
     const { data: originalPublicData } = supabase.storage
@@ -490,6 +527,51 @@ export default function MakePage() {
     
     await createHologramVideo(imageUrl, originalPublicData.publicUrl);
   };
+
+  // 로그인 확인 중 로딩 상태
+  if (isCheckingAuth) {
+    return (
+      <main style={{ minHeight: "calc(100vh - 64px)", padding: "24px 24px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <p style={{ fontSize: "16px", color: "#666666" }}>로그인 확인 중...</p>
+        </div>
+      </main>
+    );
+  }
+
+  // 로그인하지 않은 경우
+  if (!user) {
+    return (
+      <main style={{ minHeight: "calc(100vh - 64px)", padding: "24px 24px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center", maxWidth: "500px" }}>
+          <h1 style={{ fontSize: "32px", fontWeight: 700, marginBottom: "16px", color: "#000000" }}>
+            로그인이 필요합니다
+          </h1>
+          <p style={{ fontSize: "16px", color: "#666666", marginBottom: "32px" }}>
+            영상 제작은 로그인한 사용자만 이용할 수 있습니다.
+          </p>
+          <button
+            onClick={() => router.push("/")}
+            style={{
+              padding: "12px 24px",
+              fontSize: "16px",
+              fontWeight: 600,
+              backgroundColor: "#000000",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              transition: "opacity 0.2s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+          >
+            홈으로 이동
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main style={{ minHeight: "calc(100vh - 64px)", padding: "24px 24px" }}>

@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { imageUrl } = await req.json();
+    const { imageUrl, userId } = await req.json();
     if (!imageUrl) {
       return NextResponse.json(
         { error: "imageUrl이 필요합니다." },
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("배경 제거 시작:", { imageUrl, modelVersion: REMBG_MODEL_VERSION });
+    console.log("배경 제거 시작:", { imageUrl, userId: userId ? userId.substring(0, 8) : "anonymous", modelVersion: REMBG_MODEL_VERSION });
 
     // 1) Replicate에 배경 제거 요청
     const createRes = await fetch("https://api.replicate.com/v1/predictions", {
@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseSecretKey);
     const bucket = "3D_hologram_images";
 
-    // 기존 파일 목록 확인해서 다음 번호 계산
+    // 기존 파일 목록 확인해서 해당 유저의 다음 번호 계산
     const { data: existingFiles } = await supabase.storage
       .from(bucket)
       .list("removed_backgrounds", {
@@ -169,22 +169,33 @@ export async function POST(req: NextRequest) {
         offset: 0,
       });
 
-    let nextIndex = 1;
-    if (existingFiles && existingFiles.length > 0) {
-      const numericNames = existingFiles
-        .map((f) => {
-          const base = f.name.split(".")[0];
-          const num = Number(base);
-          return Number.isNaN(num) ? null : num;
-        })
-        .filter((n): n is number => n !== null);
+    // 파일명 생성: {user_id}_{번호}.png 또는 anonymous_{timestamp}.png
+    let fileName: string;
+    if (userId) {
+      // 로그인한 사용자: 해당 유저의 파일만 필터링해서 번호 계산
+      const prefix = `${userId}_`;
+      const userFiles = existingFiles?.filter(f => f.name.startsWith(prefix)) || [];
+      
+      let nextIndex = 1;
+      if (userFiles.length > 0) {
+        const numericNames = userFiles
+          .map((f) => {
+            const base = f.name.replace(prefix, "").split(".")[0];
+            const num = Number(base);
+            return Number.isNaN(num) ? null : num;
+          })
+          .filter((n): n is number => n !== null);
 
-      if (numericNames.length > 0) {
-        nextIndex = Math.max(...numericNames) + 1;
+        if (numericNames.length > 0) {
+          nextIndex = Math.max(...numericNames) + 1;
+        }
       }
+      fileName = `${userId}_${nextIndex}.png`;
+    } else {
+      // 로그인하지 않은 사용자: 타임스탬프 사용
+      fileName = `anonymous_${Date.now()}.png`;
     }
 
-    const fileName = `${nextIndex}.png`;
     const filePath = `removed_backgrounds/${fileName}`;
 
     console.log("Supabase 업로드 시작:", { filePath, fileSize: imageBlob.size });

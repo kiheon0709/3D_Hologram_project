@@ -10,6 +10,7 @@ import type { User } from "@supabase/supabase-js";
 export default function Navigation() {
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<{ nickname: string; credit: number } | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -18,6 +19,21 @@ export default function Navigation() {
     // 현재 세션 확인
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        // 프로필 정보 가져오기
+        supabase
+          .from("profiles")
+          .select("nickname, credit")
+          .eq("id", session.user.id)
+          .single()
+          .then(({ data, error }) => {
+            if (!error && data) {
+              setProfile(data);
+            }
+          });
+      } else {
+        setProfile(null);
+      }
     });
 
     // 인증 상태 변경 감지
@@ -25,6 +41,21 @@ export default function Navigation() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        // 프로필 정보 가져오기
+        supabase
+          .from("profiles")
+          .select("nickname, credit")
+          .eq("id", session.user.id)
+          .single()
+          .then(({ data, error }) => {
+            if (!error && data) {
+              setProfile(data);
+            }
+          });
+      } else {
+        setProfile(null);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -155,7 +186,6 @@ export default function Navigation() {
                     display: "flex",
                     alignItems: "center",
                     gap: "8px",
-                    background: "none",
                     border: "1px solid #e5e5e5",
                     borderRadius: "8px",
                     padding: "8px 12px",
@@ -187,7 +217,7 @@ export default function Navigation() {
                     {user.email?.charAt(0).toUpperCase() || "U"}
                   </div>
                   <span style={{ fontSize: "14px", color: "#333333" }}>
-                    {user.email?.split("@")[0] || "User"}
+                    {profile?.nickname || user.email?.split("@")[0] || "User"}
                   </span>
                   <svg
                     width="12"
@@ -225,9 +255,13 @@ export default function Navigation() {
                     }}
                   >
                     <div style={{ padding: "12px 16px", borderBottom: "1px solid #e5e5e5" }}>
-                      <div style={{ fontSize: "12px", color: "#666666", marginBottom: "4px" }}>이메일</div>
+                      <div style={{ fontSize: "12px", color: "#666666", marginBottom: "4px" }}>닉네임</div>
+                      <div style={{ fontSize: "14px", color: "#000000", fontWeight: 500, marginBottom: "12px" }}>
+                        {profile?.nickname || user.email?.split("@")[0] || "User"}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#666666", marginBottom: "4px" }}>크래딧</div>
                       <div style={{ fontSize: "14px", color: "#000000", fontWeight: 500 }}>
-                        {user.email}
+                        {profile?.credit ?? 0} 크래딧
                       </div>
                     </div>
                     <button
@@ -236,12 +270,12 @@ export default function Navigation() {
                         width: "100%",
                         padding: "12px 16px",
                         textAlign: "left",
-                        background: "none",
                         border: "none",
                         fontSize: "14px",
                         color: "#dc2626",
                         cursor: "pointer",
                         transition: "background-color 0.2s",
+                        backgroundColor: "transparent",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = "#fee2e2";

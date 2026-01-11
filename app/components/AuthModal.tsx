@@ -13,6 +13,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -21,6 +23,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
     setMode(initialMode);
     setEmail("");
     setPassword("");
+    setNickname("");
     setError(null);
     setMessage(null);
   }, [initialMode, isOpen]);
@@ -33,18 +36,32 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
 
     try {
       if (mode === "signup") {
+        if (!nickname || nickname.trim() === "") {
+          setError("닉네임을 입력해주세요.");
+          setLoading(false);
+          return;
+        }
+
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              nickname: nickname.trim(), // 트리거가 이 값을 읽어서 profiles에 저장함
+            },
+          },
         });
 
         if (signUpError) throw signUpError;
 
         if (data.user) {
-          setMessage("회원가입이 완료되었습니다! 이메일을 확인해주세요.");
+          setMessage("회원가입이 완료되었습니다!");
           setTimeout(() => {
             setMode("login");
             setMessage(null);
+            setEmail("");
+            setPassword("");
+            setNickname("");
           }, 2000);
         }
       } else {
@@ -154,6 +171,42 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             />
           </div>
 
+          {mode === "signup" && (
+            <div style={{ marginBottom: "16px" }}>
+              <label
+                htmlFor="nickname"
+                style={{
+                  display: "block",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  color: "#333333",
+                  marginBottom: "8px",
+                }}
+              >
+                닉네임
+              </label>
+              <input
+                id="nickname"
+                type="text"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                required
+                maxLength={20}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  fontSize: "14px",
+                  border: "1px solid #e5e5e5",
+                  borderRadius: "8px",
+                  outline: "none",
+                  transition: "border-color 0.2s",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "#000000")}
+                onBlur={(e) => (e.target.style.borderColor = "#e5e5e5")}
+              />
+            </div>
+          )}
+
           <div style={{ marginBottom: "24px" }}>
             <label
               htmlFor="password"
@@ -167,25 +220,56 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             >
               비밀번호
             </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              style={{
-                width: "100%",
-                padding: "12px",
-                fontSize: "14px",
-                border: "1px solid #e5e5e5",
-                borderRadius: "8px",
-                outline: "none",
-                transition: "border-color 0.2s",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#000000")}
-              onBlur={(e) => (e.target.style.borderColor = "#e5e5e5")}
-            />
+            <div style={{ position: "relative" }}>
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                style={{
+                  width: "100%",
+                  padding: "12px 40px 12px 12px",
+                  fontSize: "14px",
+                  border: "1px solid #e5e5e5",
+                  borderRadius: "8px",
+                  outline: "none",
+                  transition: "border-color 0.2s",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "#000000")}
+                onBlur={(e) => (e.target.style.borderColor = "#e5e5e5")}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute",
+                  right: "12px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "4px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#666666",
+                }}
+              >
+                {showPassword ? (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 3C5 3 1.73 7.11 1 10c.73 2.89 4 7 9 7s8.27-4.11 9-7c-.73-2.89-4-7-9-7zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
+                    <path d="M2.5 2.5L17.5 17.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 3C5 3 1.73 7.11 1 10c.73 2.89 4 7 9 7s8.27-4.11 9-7c-.73-2.89-4-7-9-7zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           {error && (
