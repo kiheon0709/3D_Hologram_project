@@ -136,6 +136,7 @@ async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<str
   const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/veo-3.1-fast-generate-preview:predictLongRunning`;
 
   // 4) 요청 본문 구성 (Veo 3 형식)
+  const gcsBucketName = "myhologram-video-output";
   const requestBody = {
     instances: [
       {
@@ -147,6 +148,7 @@ async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<str
       },
     ],
     parameters: {
+      storageUri: `gs://${gcsBucketName}/`,
       durationSeconds: 4,
       aspectRatio: "16:9",
       resolution: "1080p",
@@ -198,12 +200,18 @@ async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<str
     await new Promise((r) => setTimeout(r, 20000)); // 20초 대기
     pollCount++;
 
-    const pollUrl = `https://${location}-aiplatform.googleapis.com/v1/${operationName}`;
+    // Vertex AI fetchPredictOperation 엔드포인트 사용
+    const pollUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/veo-3.1-fast-generate-preview:fetchPredictOperation`;
+    
     const pollRes = await fetch(pollUrl, {
+      method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        operationName: operationName,
+      }),
     });
 
     if (!pollRes.ok) {
@@ -212,8 +220,7 @@ async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<str
     }
 
     currentOperation = await pollRes.json();
-    const progress = currentOperation.metadata?.progress || 0;
-    console.log(`⏳ Vertex AI 작업 상태 (${pollCount}/${maxPolls}): 진행률 ${(progress * 100).toFixed(1)}%`);
+    console.log(`⏳ Vertex AI 작업 상태 (${pollCount}/${maxPolls}):`, currentOperation.done ? '완료' : '진행중');
   }
 
   if (pollCount >= maxPolls) {
@@ -226,19 +233,29 @@ async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<str
 
   // 7) 결과 영상 URI 추출
   const response = currentOperation.response || {};
-  const generatedSamples = response.generatedSamples || [];
   
-  if (generatedSamples.length === 0) {
-    console.error("Vertex AI 응답 전체:", JSON.stringify(currentOperation, null, 2));
-    throw new Error(`Vertex AI 영상 생성 결과 형식이 예상과 다릅니다: ${JSON.stringify(response)}`);
+  // Veo 3 응답 형식: response.predictions[0].storageUri 또는 response.videos[0].gcsUri
+  const predictions = response.predictions || [];
+  const videos = response.videos || [];
+  
+  let videoUri: string | null = null;
+  
+  // 방법 1: predictions[0].storageUri
+  if (predictions.length > 0 && predictions[0].storageUri) {
+    videoUri = predictions[0].storageUri;
   }
-
-  const videoData = generatedSamples[0]?.video;
-  const videoUri = videoData?.uri;
+  // 방법 2: videos[0].gcsUri
+  else if (videos.length > 0 && videos[0].gcsUri) {
+    videoUri = videos[0].gcsUri;
+  }
+  // 방법 3: bytesBase64Encoded (Storage URI 없이 바이트로 반환된 경우)
+  else if (predictions.length > 0 && predictions[0].bytesBase64Encoded) {
+    throw new Error("비디오가 바이트로 반환되었습니다. storageUri 파라미터를 설정해야 합니다.");
+  }
   
   if (!videoUri) {
     console.error("Vertex AI 응답 전체:", JSON.stringify(currentOperation, null, 2));
-    throw new Error(`Vertex AI 영상 URI를 찾을 수 없습니다: ${JSON.stringify(generatedSamples[0])}`);
+    throw new Error(`Vertex AI 영상 URI를 찾을 수 없습니다. 응답: ${JSON.stringify(response)}`);
   }
 
   console.log("✅ Vertex AI Veo 영상 생성 완료, 결과 URI:", videoUri);
@@ -247,9 +264,7 @@ async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<str
   if (videoUri.startsWith("gs://")) {
     // gs://bucket/path 형식을 https://storage.googleapis.com/bucket/path로 변환
     const gsPath = videoUri.replace("gs://", "");
-    const [bucket, ...pathParts] = gsPath.split("/");
-    const path = pathParts.join("/");
-    return `https://storage.googleapis.com/${bucket}/${path}`;
+    return `https://storage.googleapis.com/${gsPath}`;
   }
 
   // https:// 형식이면 그대로 반환
