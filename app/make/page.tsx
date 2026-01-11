@@ -277,7 +277,7 @@ export default function MakePage() {
   };
 
   // 홀로그램 영상 생성 함수 (공통 로직)
-  const createHologramVideo = async (imageUrl: string) => {
+  const createHologramVideo = async (imageUrl: string, originalImageUrl: string) => {
     setIsCreatingVideo(true);
     
     // 프롬프트 관리 파일에서 프롬프트 가져오기
@@ -309,7 +309,38 @@ export default function MakePage() {
 
       console.log("홀로그램 영상 생성 완료:", videoData);
       setHologramVideoUrl(videoData.videoUrl);
-      setUploadMessage(`✅ 홀로그램 영상 생성 완료!`);
+
+      // DB에 작품 저장
+      try {
+        const saveRes = await fetch("/api/holograms", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: `홀로그램 작품 ${new Date().toLocaleDateString("ko-KR")}`,
+            original_image_url: originalImageUrl,
+            background_removed_image_url: removedBackgroundUrl || null,
+            video_url: videoData.videoUrl,
+            platform: videoPlatform,
+            hologram_type: hologramType,
+            user_prompt: userPrompt || null,
+          }),
+        });
+
+        const saveData = await saveRes.json();
+        
+        if (saveRes.ok) {
+          console.log("작품 DB 저장 완료:", saveData);
+          setUploadMessage(`✅ 홀로그램 영상 생성 및 저장 완료!`);
+        } else {
+          console.error("작품 저장 오류:", saveData);
+          setUploadMessage(`✅ 영상 생성 완료! (저장 오류: ${saveData.error})`);
+        }
+      } catch (saveErr) {
+        console.error("작품 저장 중 오류:", saveErr);
+        setUploadMessage(`✅ 영상 생성 완료! (저장 실패)`);
+      }
 
       return true;
     } catch (err) {
@@ -436,7 +467,28 @@ export default function MakePage() {
     }
 
     setUploadMessage("홀로그램 영상 생성 중...");
-    await createHologramVideo(imageUrl);
+    
+    // 원본 이미지 URL도 함께 전달 (DB 저장용)
+    // uploadedImagePath가 없으면 먼저 업로드
+    let originalImagePath = uploadedImagePath;
+    if (!originalImagePath) {
+      setIsUploading(true);
+      setUploadMessage("원본 이미지 업로드 중...");
+      originalImagePath = await uploadImageToSupabase(selectedFile);
+      setIsUploading(false);
+      
+      if (!originalImagePath) {
+        setUploadMessage("❌ 원본 이미지 업로드에 실패했습니다.");
+        return;
+      }
+    }
+    
+    const bucket = "3D_hologram_images";
+    const { data: originalPublicData } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(originalImagePath);
+    
+    await createHologramVideo(imageUrl, originalPublicData.publicUrl);
   };
 
   return (

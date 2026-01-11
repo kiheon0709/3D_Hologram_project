@@ -121,6 +121,18 @@ export default function Navigation() {
             Make
           </Link>
           <Link
+            href="/mypage"
+            style={{
+              fontSize: "14px",
+              fontWeight: pathname === "/mypage" ? 600 : 400,
+              color: pathname === "/mypage" ? "#000000" : "#666666",
+              textDecoration: "none",
+              transition: "color 0.2s",
+            }}
+          >
+            MyPage
+          </Link>
+          <Link
             href="/admin"
             style={{
               fontSize: "14px",
