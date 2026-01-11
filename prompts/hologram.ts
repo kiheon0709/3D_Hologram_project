@@ -15,8 +15,8 @@ IMPORTANT: Do not alter any characteristics of the original character or subject
 
 Preserve all original details, colors, proportions, and textures exactly as the input image.
 
-The subject stays centered and stable.
-Use only subtle object-based motion, such as very slow self-rotation or gentle depth parallax, to enhance the 3D effect.
+The subject can move and animate naturally according to the requirements, while staying generally centered in the frame.
+Use object-based motion, such as self-rotation or depth parallax, to enhance the 3D effect.
 The camera remains completely static.
 
 Create a perfect seamless loop where the first and last frames match naturally, allowing continuous infinite playback.
