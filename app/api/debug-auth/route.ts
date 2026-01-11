@@ -17,15 +17,29 @@ export async function POST(req: NextRequest) {
   try {
     console.log('🔍 WIF 인증 테스트 시작...');
 
-    // 환경변수 상태 확인
+    // 환경변수 상태 확인 (더 자세하게)
     const envCheck = {
       GOOGLE_PROJECT_ID: !!process.env.GOOGLE_PROJECT_ID,
       GOOGLE_WIF_AUDIENCE: !!process.env.GOOGLE_WIF_AUDIENCE,
       GOOGLE_SERVICE_ACCOUNT_EMAIL: !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
       VERCEL_OIDC_TOKEN: !!process.env.VERCEL_OIDC_TOKEN,
+      AWS_WEB_IDENTITY_TOKEN_FILE: !!process.env.AWS_WEB_IDENTITY_TOKEN_FILE,
+      VERCEL_URL: !!process.env.VERCEL_URL,
     };
 
     console.log('환경변수 체크:', envCheck);
+
+    // 추가 디버그 정보
+    const debugInfo: any = {
+      hasVercelOidcToken: !!process.env.VERCEL_OIDC_TOKEN,
+      hasAwsWebIdentityFile: !!process.env.AWS_WEB_IDENTITY_TOKEN_FILE,
+      vercelUrl: process.env.VERCEL_URL,
+      allEnvKeys: Object.keys(process.env).filter(k => 
+        k.includes('VERCEL') || k.includes('AWS') || k.includes('OIDC')
+      ),
+    };
+
+    console.log('디버그 정보:', debugInfo);
 
     // 인증 테스트 실행
     const result = await testAuthentication();
@@ -35,6 +49,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ...result,
       envCheck,
+      debugInfo,
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
