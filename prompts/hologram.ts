@@ -9,7 +9,7 @@ export const BASE_HOLOGRAM_PROMPT = `Transform the input image into a seamless l
 
 The background must remain pure black (#000000) at all times.
 
-Convert the subject into a strong semi-3D, volumetric form with clear depth and dimensionality, making it appear as a floating 3D object in space.
+Convert the subject into a strong semi-3D, volumetric form with clear depth and dimensionality, making it 3D object in space.
 Preserve all original details, colors, proportions, and textures exactly as the input image.
 
 The subject stays centered and stable.
