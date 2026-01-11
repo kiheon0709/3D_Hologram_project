@@ -9,6 +9,8 @@ type VideoFile = {
   created_at: string;
   updated_at: string;
   publicUrl: string;
+  userId?: string;
+  nickname?: string;
 };
 
 export default function ArchivePage() {
@@ -44,7 +46,7 @@ export default function ArchivePage() {
         return;
       }
 
-      // 각 파일의 public URL 가져오기
+      // 각 파일의 public URL 가져오기 및 userId 추출
       const videosWithUrls = files
         .filter((file) => file.name.endsWith(".mp4"))
         .map((file) => {
@@ -52,16 +54,45 @@ export default function ArchivePage() {
             .from(bucket)
             .getPublicUrl(`veo_video/${file.name}`);
           
+          // 파일명에서 userId 추출: {userId}_{번호}.mp4
+          const fileNameWithoutExt = file.name.replace(".mp4", "");
+          const userId = fileNameWithoutExt.split("_")[0];
+          
           return {
             name: file.name,
             id: file.id,
             created_at: file.created_at || "",
             updated_at: file.updated_at || "",
             publicUrl: data.publicUrl,
+            userId: userId,
           };
         });
 
-      setVideos(videosWithUrls);
+      // 모든 userId 추출 (중복 제거)
+      const userIds = [...new Set(videosWithUrls.map(v => v.userId).filter(Boolean))];
+      
+      // profiles 테이블에서 nickname 가져오기
+      const userIdToNickname = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, nickname")
+          .in("id", userIds);
+        
+        if (profiles) {
+          profiles.forEach(profile => {
+            userIdToNickname.set(profile.id, profile.nickname || profile.id);
+          });
+        }
+      }
+
+      // 각 비디오에 nickname 추가
+      const videosWithNicknames = videosWithUrls.map(video => ({
+        ...video,
+        nickname: video.userId ? (userIdToNickname.get(video.userId) || video.userId) : undefined,
+      }));
+
+      setVideos(videosWithNicknames);
     } catch (err) {
       console.error("영상 로드 중 오류:", err);
     } finally {
@@ -239,7 +270,7 @@ export default function ArchivePage() {
                       color: "#000000",
                     }}
                   >
-                    {video.name.replace(".mp4", "")}
+                    {video.nickname || video.userId || video.name.replace(".mp4", "")}
                   </h3>
                   {video.created_at && (
                     <p style={{ fontSize: "12px", color: "#666666", margin: 0 }}>
