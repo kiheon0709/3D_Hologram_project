@@ -5,20 +5,21 @@
 /**
  * 기본 3D 변환 프롬프트
  */
-export const BASE_HOLOGRAM_PROMPT = `Transform the 2D image into a seamless looping 3D holographic video on a pure black (#000000) background.
+export const BASE_HOLOGRAM_PROMPT = `Transform the input image into a seamless looping 3D holographic-style video.
 
-Create a perfect seamless loop where the first frame matches the last frame exactly, allowing infinite continuous playback.
+The background must remain pure black (#000000) at all times.
 
-Convert the subject from 2D to 3D with strong depth, dimensionality, and volumetric presence. Use subtle parallax movement and gentle rotation to enhance the 3D illusion. The subject should appear as a floating 3D object with depth perception.
+Convert the subject into a strong semi-3D, volumetric form with clear depth and dimensionality, making it appear as a floating 3D object in space.
+Preserve all original details, colors, proportions, and textures exactly as the input image.
 
-Add subtle camera movement with gentle circular or orbital motion around the subject to maximize the 3D effect while keeping the subject centered.
+The subject stays centered and stable.
+Use only subtle object-based motion, such as very slow self-rotation or gentle depth parallax, to enhance the 3D effect.
+The camera remains completely static.
 
-Keep all original details, colors, proportions, and textures of the subject. The background must remain pure black (#000000) at all times with no variation.
+Create a perfect seamless loop where the first and last frames match naturally, allowing continuous infinite playback.
 
-No shadows, no reflections, no particles, no added objects, no background elements.
-Lighting stays consistent, clean, and evenly distributed to maintain the holographic appearance.
-
-The animation should be smooth, continuous, and designed to loop perfectly without any visible cuts or jumps.`;
+Lighting is clean, neutral, and consistent.
+No shadows, no reflections, no particles, no added elements.`;
 
 /**
  * 사용자 프롬프트와 기본 프롬프트를 결합하여 최종 프롬프트 생성
