@@ -35,3 +35,26 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Service Account keys (보안)
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!next-env.d.ts
+myhologram-*.json
+*-key.json
+key-base64.txt
+
+# 설정 가이드 문서들 (임시 문서)
+FINAL_STEPS.md
+FINAL_SOLUTION.md
+ORG_POLICY_DISABLE.md
+ALTERNATIVE_SOLUTIONS.md
+QUICK_SETUP.md
+SERVICE_ACCOUNT_SETUP.md
+VERCEL_OIDC_SETUP.md
+SETUP_GUIDE.md
+
+# 인코딩 스크립트
+encode-key.sh
+
