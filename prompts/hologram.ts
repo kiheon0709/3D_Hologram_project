@@ -16,7 +16,8 @@ IMPORTANT: Do not alter any characteristics of the original character or subject
 Preserve all original details, colors, proportions, and textures exactly as the input image.
 
 The subject can move and animate naturally according to the requirements, while staying generally centered in the frame.
-Use object-based motion, such as self-rotation or depth parallax, to enhance the 3D effect.
+IMPORTANT: Keep the entire subject fully visible within the frame at all times. Do not crop, cut off, or hide any part of the subject. Ensure all parts of the subject remain completely visible throughout the entire video.
+Add natural rotation to the subject. The subject should rotate smoothly around its vertical axis to showcase the 3D depth and all angles of the character. Use object-based motion, such as self-rotation or depth parallax, to enhance the 3D effect.
 The camera remains completely static.
 
 Create a perfect seamless loop where the first and last frames match naturally, allowing continuous infinite playback.
