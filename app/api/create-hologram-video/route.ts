@@ -271,15 +271,10 @@ async function downloadAndUploadVideo(videoUrl: string, platform: string, userId
   console.log(`${platform} 결과 영상 다운로드 시작:`, videoUrl);
   
   // GCS URI (gs://)인 경우 @google-cloud/storage 라이브러리 사용
-  let videoBuffer: ArrayBuffer;
+  let videoBlob: Blob;
   if (videoUrl.startsWith('gs://')) {
     console.log("GCS URI 감지, @google-cloud/storage 사용");
     const { Storage } = await import('@google-cloud/storage');
-    const { createGoogleAuthClient } = await import("@/lib/googleAuth-unified");
-    
-    // Service Account 인증 정보 가져오기
-    const auth = await createGoogleAuthClient();
-    const client = await auth.getClient();
     
     // GCS URI 파싱: gs://bucket-name/path/to/file
     const gsPath = videoUrl.replace('gs://', '');
@@ -307,7 +302,9 @@ async function downloadAndUploadVideo(videoUrl: string, platform: string, userId
     
     // 파일 다운로드
     const [buffer] = await gcsFile.download();
-    videoBuffer = buffer.buffer;
+    // Buffer를 Uint8Array로 변환한 후 ArrayBuffer로 변환
+    const arrayBuffer = new Uint8Array(buffer).buffer;
+    videoBlob = new Blob([arrayBuffer], { type: "video/mp4" });
     console.log("GCS 파일 다운로드 완료");
   } else {
     // 일반 HTTP URL인 경우 fetch 사용
@@ -315,11 +312,10 @@ async function downloadAndUploadVideo(videoUrl: string, platform: string, userId
     if (!videoRes.ok) {
       throw new Error(`영상 다운로드 실패: ${videoRes.status} ${videoRes.statusText}`);
     }
-    videoBuffer = await videoRes.arrayBuffer();
+    const videoBuffer = await videoRes.arrayBuffer();
+    videoBlob = new Blob([videoBuffer], { type: "video/mp4" });
     console.log("HTTP 파일 다운로드 완료");
   }
-
-  const videoBlob = new Blob([videoBuffer], { type: "video/mp4" });
 
     // Supabase에 업로드
     const { createClient } = await import("@supabase/supabase-js");
