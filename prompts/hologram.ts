@@ -11,9 +11,9 @@ The background must remain pure black (#000000) at all times.
 
 Convert the subject into a strong semi-3D, volumetric form with clear depth and dimensionality, making it appear as a floating 3D object in space.
 
-IMPORTANT: Do not alter any characteristics of the original character or subject. Preserve the face, body, features, and all details exactly as they appear in the input image. Keep all original facial features, body proportions, textures, colors, and distinctive characteristics completely unchanged. The character's appearance must remain identical to the original.
+CRITICAL: Do not alter, modify, or change ANY characteristics of the original character or subject. The character's face, facial features, facial expressions, body, proportions, textures, colors, and ALL details must remain EXACTLY as they appear in the input image. Absolutely do not modify the face, expressions, or any details. The character's appearance must remain completely identical to the original - no changes whatsoever.
 
-Preserve all original details, colors, proportions, and textures exactly as the input image.
+Preserve all original details, colors, proportions, textures, facial features, expressions, and distinctive characteristics exactly as the input image.
 
 The subject can move and animate naturally according to the requirements, while staying generally centered in the frame.
 IMPORTANT: Keep the entire subject fully visible within the frame at all times. Do not crop, cut off, or hide any part of the subject. Ensure all parts of the subject remain completely visible throughout the entire video.
