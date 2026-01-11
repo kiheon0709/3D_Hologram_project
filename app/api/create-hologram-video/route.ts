@@ -277,11 +277,25 @@ async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<str
 async function downloadAndUploadVideo(videoUrl: string, platform: string, userId: string | null): Promise<string> {
   console.log(`${platform} 결과 영상 다운로드 시작:`, videoUrl);
   
-    const videoRes = await fetch(videoUrl);
-    if (!videoRes.ok) {
+  // GCS URL인 경우 Access Token 사용 (인증 필요)
+  let videoRes: Response;
+  if (videoUrl.includes('storage.googleapis.com')) {
+    const { getAccessToken } = await import("@/lib/googleAuth-unified");
+    const accessToken = await getAccessToken();
+    
+    videoRes = await fetch(videoUrl, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+  } else {
+    videoRes = await fetch(videoUrl);
+  }
+  
+  if (!videoRes.ok) {
     throw new Error(`영상 다운로드 실패: ${videoRes.status} ${videoRes.statusText}`);
-    }
-    console.log("영상 다운로드 완료");
+  }
+  console.log("영상 다운로드 완료");
 
     const videoBuffer = await videoRes.arrayBuffer();
     const videoBlob = new Blob([videoBuffer], { type: "video/mp4" });
