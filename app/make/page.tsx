@@ -746,14 +746,14 @@ export default function MakePage() {
                     style={{ width: "18px", height: "18px", cursor: "pointer" }}
                   />
                   <span style={{ fontSize: "14px", color: "#000000" }}>
-                    Veo (Gemini API 직접)
+                    Veo (Vertex AI)
                   </span>
                 </label>
               </div>
               <p style={{ fontSize: "12px", color: "#666666", margin: 0 }}>
                 {videoPlatform === "replicate" 
                   ? "Replicate를 통해 Veo 모델 사용 (빠름, 유료)" 
-                  : "Gemini API를 통해 Veo 직접 사용 (공식 API, 테스트용)"}
+                  : "Google Vertex AI를 통해 Veo 직접 사용 (공식 API)"}
               </p>
             </div>
 

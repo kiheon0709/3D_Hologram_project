@@ -42,30 +42,35 @@ export async function POST(req: NextRequest) {
     const projectId = process.env.GOOGLE_PROJECT_ID;
     const location = process.env.GOOGLE_LOCATION || 'us-central1';
     
-    // Veo 2 모델 엔드포인트
-    const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/veo-002:generateVideo`;
+    // Veo 3.1 Fast 모델 엔드포인트
+    const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/veo-3.1-fast-generate-preview:predictLongRunning`;
 
-    // 4. 요청 본문 구성
+    // 4. 요청 본문 구성 (Veo 3 형식)
     const requestBody: any = {
-      prompt: {
-        text: prompt,
-      },
+      instances: [
+        {
+          prompt: prompt,
+        },
+      ],
       parameters: {
+        durationSeconds: 4,
         aspectRatio: aspectRatio,
-        // Veo 2 기본 설정
-        safetyFilterLevel: 'BLOCK_ONLY_HIGH', // 안전 필터 수준
-        personGeneration: 'ALLOW_ADULT', // 사람 생성 허용
+        resolution: '1080p',
+        personGeneration: 'allow_adult',
+        sampleCount: 1,
       },
     };
 
     // 이미지가 있으면 추가 (image-to-video)
     if (imageUrl) {
-      requestBody.prompt.image = {
+      requestBody.instances[0].image = {
         gcsUri: imageUrl, // GCS URI 형식
+        mimeType: 'image/jpeg',
       };
     } else if (imageBase64) {
-      requestBody.prompt.image = {
+      requestBody.instances[0].image = {
         bytesBase64Encoded: imageBase64,
+        mimeType: 'image/jpeg',
       };
     }
 

@@ -105,53 +105,67 @@ async function createVideoWithReplicate(imageUrl: string, prompt: string): Promi
 }
 
 /**
- * Veo (Gemini API)를 사용한 비디오 생성
+ * Veo (Vertex AI)를 사용한 비디오 생성
  */
 async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY가 설정되지 않았습니다.");
+  // Vertex AI 인증을 위한 모듈 import
+  const { getAccessToken } = await import("@/lib/googleAuth-unified");
+  
+  const projectId = process.env.GOOGLE_PROJECT_ID;
+  const location = process.env.GOOGLE_LOCATION || "us-central1";
+
+  if (!projectId) {
+    throw new Error("GOOGLE_PROJECT_ID가 설정되지 않았습니다.");
   }
 
-  console.log("Veo로 홀로그램 영상 생성 시작:", { imageUrl, model: VEO_MODEL });
+  console.log("Vertex AI Veo로 홀로그램 영상 생성 시작:", { imageUrl, location });
 
-  // 1) 이미지를 base64로 변환
+  // 1) Access Token 가져오기
+  const accessToken = await getAccessToken();
+  console.log("✅ Vertex AI Access Token 획득 성공");
+
+  // 2) 이미지를 base64로 변환
   const imageResponse = await fetch(imageUrl);
   if (!imageResponse.ok) {
     throw new Error(`이미지 다운로드 실패: ${imageResponse.status}`);
   }
   const imageBuffer = await imageResponse.arrayBuffer();
   const imageBase64 = Buffer.from(imageBuffer).toString("base64");
-  const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
 
-  // 2) Veo API로 비디오 생성 요청 (공식 문서 형식)
-  const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-  const modelId = VEO_MODEL;
-  
-  const createRes = await fetch(
-    `${BASE_URL}/models/${modelId}:generateVideos?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+  // 3) Vertex AI Veo 3.1 Fast 엔드포인트
+  const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/veo-3.1-fast-generate-preview:predictLongRunning`;
+
+  // 4) 요청 본문 구성 (Veo 3 형식)
+  const requestBody = {
+    instances: [
+      {
         prompt: prompt,
         image: {
-          data: imageBase64,
-          mimeType: mimeType,
+          bytesBase64Encoded: imageBase64,
+          mimeType: "image/jpeg",
         },
-        config: {
-          lastFrame: {
-            data: imageBase64,
-            mimeType: mimeType,
-          },
-          aspectRatio: "16:9",
-          resolution: "720p",
-          durationSeconds: "4",
-        },
-      }),
-    }
-  );
+      },
+    ],
+    parameters: {
+      durationSeconds: 4,
+      aspectRatio: "16:9",
+      resolution: "1080p",
+      personGeneration: "allow_adult",
+      sampleCount: 1,
+    },
+  };
+
+  console.log("📤 Vertex AI Veo 요청 전송...");
+
+  // 5) Vertex AI API 호출
+  const createRes = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestBody),
+  });
 
   if (!createRes.ok) {
     const errorText = await createRes.text();
@@ -161,102 +175,84 @@ async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<str
     } catch {
       errorDetail = { message: errorText };
     }
-    throw new Error(`Veo API 요청 실패: ${errorDetail.error?.message || errorDetail.message || errorText}`);
+    const errorMessage = errorDetail.error?.message || errorDetail.message || errorText;
+    throw new Error(`Vertex AI Veo API 요청 실패: ${errorMessage}`);
   }
 
   const operation = await createRes.json();
   
-  // generateVideos 엔드포인트는 long-running operation을 반환
-  // 응답이 operation 객체인지 확인
-  if (!operation.name && !operation.done) {
-    // operation 객체가 아닌 경우, 직접 결과를 반환했을 수 있음
-    const directResult = operation.generatedVideos?.[0]?.video;
-    if (directResult?.uri || directResult?.url) {
-      const videoUri = directResult.uri || directResult.url;
-      console.log("Veo 영상 생성 완료 (직접 반환), 결과 URI:", videoUri);
-      return videoUri.startsWith("http") ? videoUri : `https://storage.googleapis.com/${videoUri}`;
-    }
-    throw new Error(`Veo API 응답 형식이 예상과 다릅니다: ${JSON.stringify(operation)}`);
+  if (!operation.name) {
+    throw new Error(`Vertex AI 응답에 operation name이 없습니다: ${JSON.stringify(operation)}`);
   }
 
   const operationName = operation.name;
-  
-  if (!operationName) {
-    throw new Error(`Veo API 응답에 operation name이 없습니다: ${JSON.stringify(operation)}`);
-  }
+  console.log("✅ Vertex AI operation 생성됨:", operationName);
 
-  console.log("Veo operation 생성됨:", operationName);
-
-  // 3) 작업 완료까지 폴링
+  // 6) 작업 완료까지 폴링
   let pollCount = 0;
-  const maxPolls = 120; // 최대 40분 (20초 * 120)
+  const maxPolls = 180; // 최대 60분 (20초 * 180)
   
   let currentOperation = operation;
   
   while (!currentOperation.done && pollCount < maxPolls) {
-    await new Promise((r) => setTimeout(r, 20000)); // 20초 대기 (Veo는 더 오래 걸림)
+    await new Promise((r) => setTimeout(r, 20000)); // 20초 대기
     pollCount++;
 
-    // operation name이 전체 경로인지, 상대 경로인지 확인
-    const pollUrl = operationName.startsWith("operations/") 
-      ? `${BASE_URL}/${operationName}?key=${GEMINI_API_KEY}`
-      : `${BASE_URL}/operations/${operationName}?key=${GEMINI_API_KEY}`;
-
+    const pollUrl = `https://${location}-aiplatform.googleapis.com/v1/${operationName}`;
     const pollRes = await fetch(pollUrl, {
       headers: {
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
     });
 
     if (!pollRes.ok) {
       const errorText = await pollRes.text();
-      throw new Error(`Veo 작업 상태 확인 실패: ${errorText}`);
+      throw new Error(`Vertex AI 작업 상태 확인 실패: ${errorText}`);
     }
 
     currentOperation = await pollRes.json();
     const progress = currentOperation.metadata?.progress || 0;
-    console.log(`Veo 작업 상태 (${pollCount}/${maxPolls}): 진행률 ${(progress * 100).toFixed(1)}%`);
+    console.log(`⏳ Vertex AI 작업 상태 (${pollCount}/${maxPolls}): 진행률 ${(progress * 100).toFixed(1)}%`);
   }
 
   if (pollCount >= maxPolls) {
-    throw new Error("Veo 영상 생성 시간 초과: 최대 대기 시간을 초과했습니다.");
+    throw new Error("Vertex AI Veo 영상 생성 시간 초과: 최대 대기 시간을 초과했습니다.");
   }
 
   if (currentOperation.error) {
-    throw new Error(`Veo 영상 생성에 실패했습니다: ${JSON.stringify(currentOperation.error)}`);
+    throw new Error(`Vertex AI Veo 영상 생성에 실패했습니다: ${JSON.stringify(currentOperation.error)}`);
   }
 
-  // 4) 결과 영상 URI 추출
-  // 공식 문서에 따르면 여러 형식이 가능:
-  // - response.generateVideoResponse.generatedVideos[0].video.uri
-  // - response.generateVideoResponse.generatedSamples[0].video.uri
-  // - response.generatedVideos[0].video.uri
+  // 7) 결과 영상 URI 추출
   const response = currentOperation.response || {};
-  const generateVideoResponse = response.generateVideoResponse || {};
-  const generatedVideos = generateVideoResponse.generatedVideos || 
-                          generateVideoResponse.generatedSamples || 
-                          response.generatedVideos || 
-                          [];
+  const generatedSamples = response.generatedSamples || [];
   
-  const videoData = generatedVideos[0]?.video || generatedVideos[0];
-  const videoUri = videoData?.uri || videoData?.url;
+  if (generatedSamples.length === 0) {
+    console.error("Vertex AI 응답 전체:", JSON.stringify(currentOperation, null, 2));
+    throw new Error(`Vertex AI 영상 생성 결과 형식이 예상과 다릅니다: ${JSON.stringify(response)}`);
+  }
+
+  const videoData = generatedSamples[0]?.video;
+  const videoUri = videoData?.uri;
   
   if (!videoUri) {
-    console.error("Veo 응답 전체:", JSON.stringify(currentOperation, null, 2));
-    throw new Error(`Veo 영상 생성 결과 형식이 예상과 다릅니다: ${JSON.stringify(currentOperation.response)}`);
+    console.error("Vertex AI 응답 전체:", JSON.stringify(currentOperation, null, 2));
+    throw new Error(`Vertex AI 영상 URI를 찾을 수 없습니다: ${JSON.stringify(generatedSamples[0])}`);
   }
 
-  console.log("Veo 영상 생성 완료, 결과 URI:", videoUri);
+  console.log("✅ Vertex AI Veo 영상 생성 완료, 결과 URI:", videoUri);
 
-  // 5) Google Cloud Storage URI 다운로드
-  // gs:// 형식이면 Files API를 통해 다운로드, https:// 형식이면 직접 사용
+  // 8) GCS URI를 HTTP URL로 변환
   if (videoUri.startsWith("gs://")) {
-    // gs:// 형식은 Files API를 사용해야 함
-    // 일단 에러를 던지고, 실제 구현은 나중에 추가
-    throw new Error(`GCS URI는 아직 지원하지 않습니다. URI: ${videoUri}`);
+    // gs://bucket/path 형식을 https://storage.googleapis.com/bucket/path로 변환
+    const gsPath = videoUri.replace("gs://", "");
+    const [bucket, ...pathParts] = gsPath.split("/");
+    const path = pathParts.join("/");
+    return `https://storage.googleapis.com/${bucket}/${path}`;
   }
 
-  // https:// 형식이면 그대로 반환 (다음 단계에서 다운로드)
+  // https:// 형식이면 그대로 반환
   return videoUri;
 }
 
