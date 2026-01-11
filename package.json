@@ -9,6 +9,7 @@
     "lint": "node_modules/.bin/next lint"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.18.0",
     "@supabase/supabase-js": "^2.86.0",
     "@vercel/analytics": "^1.6.1",
     "exif-js": "^2.3.0",

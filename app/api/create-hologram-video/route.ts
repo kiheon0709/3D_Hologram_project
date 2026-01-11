@@ -260,14 +260,7 @@ async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<str
 
   console.log("✅ Vertex AI Veo 영상 생성 완료, 결과 URI:", videoUri);
 
-  // 8) GCS URI를 HTTP URL로 변환
-  if (videoUri.startsWith("gs://")) {
-    // gs://bucket/path 형식을 https://storage.googleapis.com/bucket/path로 변환
-    const gsPath = videoUri.replace("gs://", "");
-    return `https://storage.googleapis.com/${gsPath}`;
-  }
-
-  // https:// 형식이면 그대로 반환
+  // 8) GCS URI를 그대로 반환 (downloadAndUploadVideo에서 처리)
   return videoUri;
 }
 
@@ -277,28 +270,56 @@ async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<str
 async function downloadAndUploadVideo(videoUrl: string, platform: string, userId: string | null): Promise<string> {
   console.log(`${platform} 결과 영상 다운로드 시작:`, videoUrl);
   
-  // GCS URL인 경우 Access Token 사용 (인증 필요)
-  let videoRes: Response;
-  if (videoUrl.includes('storage.googleapis.com')) {
-    const { getAccessToken } = await import("@/lib/googleAuth-unified");
-    const accessToken = await getAccessToken();
+  // GCS URI (gs://)인 경우 @google-cloud/storage 라이브러리 사용
+  let videoBuffer: ArrayBuffer;
+  if (videoUrl.startsWith('gs://')) {
+    console.log("GCS URI 감지, @google-cloud/storage 사용");
+    const { Storage } = await import('@google-cloud/storage');
+    const { createGoogleAuthClient } = await import("@/lib/googleAuth-unified");
     
-    videoRes = await fetch(videoUrl, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+    // Service Account 인증 정보 가져오기
+    const auth = await createGoogleAuthClient();
+    const client = await auth.getClient();
+    
+    // GCS URI 파싱: gs://bucket-name/path/to/file
+    const gsPath = videoUrl.replace('gs://', '');
+    const [bucketName, ...pathParts] = gsPath.split('/');
+    const fileName = pathParts.join('/');
+    
+    console.log(`GCS 버킷: ${bucketName}, 파일 경로: ${fileName}`);
+    
+    // Storage 클라이언트 생성 (Service Account 자동 인증)
+    const credentialsBase64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
+    if (!credentialsBase64) {
+      throw new Error("GOOGLE_APPLICATION_CREDENTIALS_BASE64 환경변수가 필요합니다.");
+    }
+    
+    const credentialsJson = Buffer.from(credentialsBase64, 'base64').toString('utf8');
+    const credentials = JSON.parse(credentialsJson);
+    
+    const storage = new Storage({
+      credentials,
+      projectId: credentials.project_id,
     });
+    
+    const bucket = storage.bucket(bucketName);
+    const gcsFile = bucket.file(fileName);
+    
+    // 파일 다운로드
+    const [buffer] = await gcsFile.download();
+    videoBuffer = buffer.buffer;
+    console.log("GCS 파일 다운로드 완료");
   } else {
-    videoRes = await fetch(videoUrl);
+    // 일반 HTTP URL인 경우 fetch 사용
+    const videoRes = await fetch(videoUrl);
+    if (!videoRes.ok) {
+      throw new Error(`영상 다운로드 실패: ${videoRes.status} ${videoRes.statusText}`);
+    }
+    videoBuffer = await videoRes.arrayBuffer();
+    console.log("HTTP 파일 다운로드 완료");
   }
-  
-  if (!videoRes.ok) {
-    throw new Error(`영상 다운로드 실패: ${videoRes.status} ${videoRes.statusText}`);
-  }
-  console.log("영상 다운로드 완료");
 
-    const videoBuffer = await videoRes.arrayBuffer();
-    const videoBlob = new Blob([videoBuffer], { type: "video/mp4" });
+  const videoBlob = new Blob([videoBuffer], { type: "video/mp4" });
 
     // Supabase에 업로드
     const { createClient } = await import("@supabase/supabase-js");
