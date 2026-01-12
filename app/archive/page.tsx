@@ -20,7 +20,46 @@ export default function ArchivePage() {
   const [selectedVideo, setSelectedVideo] = useState<VideoFile | null>(null);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [videoScale, setVideoScale] = useState<number>(1.0);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fourSidesContainerRef = useRef<HTMLDivElement>(null);
+
+  // 전체화면 전환 함수
+  const handleFullscreen = async () => {
+    const container = fourSidesContainerRef.current;
+    if (!container) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await container.requestFullscreen();
+        setIsFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      console.error('전체화면 오류:', err);
+    }
+  };
+
+  // 전체화면 상태 감지
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
 
   // 비디오 다운로드 함수
   const handleDownload = async (videoUrl: string, videoName?: string) => {
@@ -222,10 +261,12 @@ export default function ArchivePage() {
         {hologramType === "4sides" ? (
           /* 4방면 홀로그램 십자가 배치 */
           <div
+            ref={fourSidesContainerRef}
             style={{
               width: "100%",
-              maxWidth: "600px",
-              aspectRatio: "1 / 1",
+              maxWidth: isFullscreen ? "100vw" : "600px",
+              height: isFullscreen ? "100vh" : "auto",
+              aspectRatio: isFullscreen ? "auto" : "1 / 1",
               display: "grid",
               gridTemplateColumns: "1fr 1fr 1fr",
               gridTemplateRows: "1fr 1fr 1fr",
@@ -412,27 +453,42 @@ export default function ArchivePage() {
         >
           ← 뒤로가기
         </button>
-        <button
-          onClick={() => handleDownload(video.publicUrl, video?.name)}
-          disabled={isDownloading}
-          style={{
-            position: "absolute",
-            top: "20px",
-            right: "20px",
-            padding: "10px 20px",
-            backgroundColor: isDownloading ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.1)",
-            border: "1px solid rgba(255, 255, 255, 0.3)",
-            borderRadius: "8px",
-            color: "#ffffff",
-            cursor: isDownloading ? "not-allowed" : "pointer",
-            fontSize: "14px",
-            fontWeight: 600,
-            zIndex: 10000,
-            opacity: isDownloading ? 0.6 : 1,
-          }}
-        >
-          {isDownloading ? "다운로드 중..." : "⬇ 다운로드"}
-        </button>
+        <div style={{ position: "absolute", top: "20px", right: "20px", display: "flex", gap: "10px", zIndex: 10000 }}>
+          {hologramType === "4sides" && (
+            <button
+              onClick={handleFullscreen}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                borderRadius: "8px",
+                color: "#ffffff",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: 600,
+              }}
+            >
+              {isFullscreen ? "⛶ 전체화면 종료" : "⛶ 전체화면"}
+            </button>
+          )}
+          <button
+            onClick={() => handleDownload(video.publicUrl, video?.name)}
+            disabled={isDownloading}
+            style={{
+              padding: "10px 20px",
+              backgroundColor: isDownloading ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.1)",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
+              borderRadius: "8px",
+              color: "#ffffff",
+              cursor: isDownloading ? "not-allowed" : "pointer",
+              fontSize: "14px",
+              fontWeight: 600,
+              opacity: isDownloading ? 0.6 : 1,
+            }}
+          >
+            {isDownloading ? "다운로드 중..." : "⬇ 다운로드"}
+          </button>
+        </div>
       </main>
     );
   }

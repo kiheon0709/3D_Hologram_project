@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
@@ -28,6 +28,45 @@ export default function MyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedHologram, setSelectedHologram] = useState<Hologram | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const fourSidesContainerRef = useRef<HTMLDivElement>(null);
+
+  // 전체화면 전환 함수
+  const handleFullscreen = async () => {
+    const container = fourSidesContainerRef.current;
+    if (!container) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await container.requestFullscreen();
+        setIsFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      console.error('전체화면 오류:', err);
+    }
+  };
+
+  // 전체화면 상태 감지
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -331,19 +370,37 @@ export default function MyPage() {
                   <h2 style={{ fontSize: "24px", fontWeight: 700, color: "#000000", margin: 0 }}>
                     {selectedHologram.title || "제목 없음"}
                   </h2>
-                  <button
-                    onClick={() => setSelectedHologram(null)}
-                    style={{
-                      padding: "8px 16px",
-                      backgroundColor: "#f5f5f5",
-                      border: "none",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                    }}
-                  >
-                    닫기
-                  </button>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    {selectedHologram.hologram_type === "4sides" && (
+                      <button
+                        onClick={handleFullscreen}
+                        style={{
+                          padding: "8px 16px",
+                          backgroundColor: "#000000",
+                          color: "#ffffff",
+                          border: "none",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {isFullscreen ? "⛶ 전체화면 종료" : "⛶ 전체화면"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setSelectedHologram(null)}
+                      style={{
+                        padding: "8px 16px",
+                        backgroundColor: "#f5f5f5",
+                        border: "none",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                      }}
+                    >
+                      닫기
+                    </button>
+                  </div>
                 </div>
 
                 {/* 비디오 */}
@@ -363,10 +420,12 @@ export default function MyPage() {
                   {selectedHologram.hologram_type === "4sides" ? (
                     /* 4방면 홀로그램 십자가 배치 */
                     <div
+                      ref={fourSidesContainerRef}
                       style={{
                         width: "100%",
-                        maxWidth: "500px",
-                        aspectRatio: "1 / 1",
+                        maxWidth: isFullscreen ? "100vw" : "500px",
+                        height: isFullscreen ? "100vh" : "auto",
+                        aspectRatio: isFullscreen ? "auto" : "1 / 1",
                         display: "grid",
                         gridTemplateColumns: "1fr 1fr 1fr",
                         gridTemplateRows: "1fr 1fr 1fr",
