@@ -44,10 +44,10 @@ export default function ArchivePage() {
     }
   };
 
-  // 전체화면 진입 시 가로 모드로 고정
+  // 전체화면 진입 시 가로 모드로 고정 (1면일 때만)
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !selectedVideo) return;
+    if (!video || !selectedVideo || selectedVideo.hologramType === "4sides") return;
 
     const handleFullscreenChange = async () => {
       if (document.fullscreenElement === video) {
