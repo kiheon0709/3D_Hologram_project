@@ -17,7 +17,30 @@ export default function ArchivePage() {
   const [videos, setVideos] = useState<VideoFile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // 비디오 다운로드 함수
+  const handleDownload = async (videoUrl: string, videoName?: string) => {
+    try {
+      setIsDownloading(true);
+      const response = await fetch(videoUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = videoName || `hologram-video-${Date.now()}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('다운로드 오류:', error);
+      alert('다운로드에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   // 전체화면 진입 시 가로 모드로 고정
   useEffect(() => {
@@ -206,6 +229,27 @@ export default function ArchivePage() {
           }}
         >
           ← 뒤로가기
+        </button>
+        <button
+          onClick={() => handleDownload(selectedVideo, video?.name)}
+          disabled={isDownloading}
+          style={{
+            position: "absolute",
+            top: "20px",
+            right: "20px",
+            padding: "10px 20px",
+            backgroundColor: isDownloading ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.1)",
+            border: "1px solid rgba(255, 255, 255, 0.3)",
+            borderRadius: "8px",
+            color: "#ffffff",
+            cursor: isDownloading ? "not-allowed" : "pointer",
+            fontSize: "14px",
+            fontWeight: 600,
+            zIndex: 10000,
+            opacity: isDownloading ? 0.6 : 1,
+          }}
+        >
+          {isDownloading ? "다운로드 중..." : "⬇ 다운로드"}
         </button>
       </main>
     );
