@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 type VideoFile = {
@@ -17,6 +17,51 @@ export default function ArchivePage() {
   const [videos, setVideos] = useState<VideoFile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // 전체화면 진입 시 가로 모드로 고정
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !selectedVideo) return;
+
+    const handleFullscreenChange = async () => {
+      if (document.fullscreenElement === video) {
+        // 전체화면 진입 시 가로 모드로 설정 시도
+        try {
+          if ('orientation' in screen && 'lock' in screen.orientation) {
+            await (screen.orientation as any).lock('landscape').catch(() => {
+              // 일부 브라우저에서는 실패할 수 있음 (무시)
+            });
+          }
+        } catch (err) {
+          // 지원하지 않는 브라우저 (무시)
+        }
+      } else {
+        // 전체화면 종료 시 잠금 해제
+        try {
+          if ('orientation' in screen && 'unlock' in screen.orientation) {
+            (screen.orientation as any).unlock();
+          }
+        } catch (err) {
+          // 지원하지 않는 브라우저 (무시)
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, [selectedVideo]);
 
   useEffect(() => {
     loadVideos();
@@ -134,6 +179,7 @@ export default function ArchivePage() {
         }}
       >
         <video
+          ref={videoRef}
           src={selectedVideo}
           controls
           autoPlay
