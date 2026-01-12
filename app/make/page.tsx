@@ -329,8 +329,8 @@ export default function MakePage() {
   const createHologramVideo = async (imageUrl: string, originalImageUrl: string) => {
     setIsCreatingVideo(true);
     
-    // 프롬프트 관리 파일에서 프롬프트 가져오기
-    const prompt = createHologramPrompt(userPrompt);
+    // 프롬프트 관리 파일에서 프롬프트 가져오기 (홀로그램 타입에 따라 다른 프롬프트 사용)
+    const prompt = createHologramPrompt(userPrompt, hologramType);
 
     try {
       // 현재 유저 세션 토큰 가져오기
