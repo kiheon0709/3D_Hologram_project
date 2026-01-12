@@ -361,26 +361,50 @@ export default function ArchivePage() {
         }
       }
 
-      // holograms 테이블에서 hologram_type 정보 가져오기
+      // holograms 테이블에서 hologram_type과 user_id 정보 가져오기
       const videoUrls = videosWithUrls.map(v => v.publicUrl);
       const { data: holograms } = await supabase
         .from("holograms")
-        .select("video_url, hologram_type")
+        .select("video_url, hologram_type, user_id")
         .in("video_url", videoUrls);
       
       const urlToHologramType = new Map<string, "1side" | "4sides">();
+      const urlToUserId = new Map<string, string>();
       if (holograms) {
         holograms.forEach(h => {
           urlToHologramType.set(h.video_url, h.hologram_type);
+          if (h.user_id) {
+            urlToUserId.set(h.video_url, h.user_id);
+          }
         });
       }
 
+      // holograms 테이블에서 가져온 user_id로 nickname 다시 조회
+      const hologramUserIds = [...new Set(Array.from(urlToUserId.values()).filter(Boolean))];
+      if (hologramUserIds.length > 0) {
+        const { data: hologramProfiles } = await supabase
+          .from("profiles")
+          .select("id, nickname")
+          .in("id", hologramUserIds);
+        
+        if (hologramProfiles) {
+          hologramProfiles.forEach(profile => {
+            userIdToNickname.set(profile.id, profile.nickname || profile.id);
+          });
+        }
+      }
+
       // 각 비디오에 nickname과 hologramType 추가
-      const videosWithNicknames = videosWithUrls.map(video => ({
-        ...video,
-        nickname: video.userId ? (userIdToNickname.get(video.userId) || video.userId) : undefined,
-        hologramType: urlToHologramType.get(video.publicUrl) || "1side",
-      }));
+      const videosWithNicknames = videosWithUrls.map(video => {
+        // holograms 테이블에서 가져온 user_id를 우선 사용, 없으면 파일명에서 추출한 userId 사용
+        const finalUserId = urlToUserId.get(video.publicUrl) || video.userId;
+        return {
+          ...video,
+          userId: finalUserId,
+          nickname: finalUserId ? (userIdToNickname.get(finalUserId) || finalUserId) : undefined,
+          hologramType: urlToHologramType.get(video.publicUrl) || "1side",
+        };
+      });
 
       setVideos(videosWithNicknames);
     } catch (err) {
