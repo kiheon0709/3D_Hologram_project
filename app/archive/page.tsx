@@ -235,7 +235,7 @@ export default function ArchivePage() {
             {/* 빈 공간 (좌상단) */}
             <div style={{ backgroundColor: "#000000" }} />
 
-            {/* 상단: 180도 회전 */}
+            {/* 상단: 180도 회전 + 위아래 뒤집기 */}
             <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
               <video
                 key="top-180"
@@ -250,7 +250,7 @@ export default function ArchivePage() {
                   height: "100%",
                   objectFit: "cover",
                   objectPosition: "center",
-                  transform: `rotate(180deg) scale(${videoScale})`,
+                  transform: `rotate(180deg) scaleY(-1) scale(${videoScale})`,
                 }}
               />
             </div>
@@ -258,7 +258,7 @@ export default function ArchivePage() {
             {/* 빈 공간 (우상단) */}
             <div style={{ backgroundColor: "#000000" }} />
 
-            {/* 좌측: 90도 회전 */}
+            {/* 좌측: 90도 회전 + 위아래 뒤집기 */}
             <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
               <video
                 key="left-90"
@@ -272,7 +272,7 @@ export default function ArchivePage() {
                   height: "100%",
                   objectFit: "cover",
                   objectPosition: "center",
-                  transform: `rotate(90deg) scale(${videoScale})`,
+                  transform: `rotate(90deg) scaleY(-1) scale(${videoScale})`,
                 }}
               />
             </div>
@@ -280,7 +280,7 @@ export default function ArchivePage() {
             {/* 중앙 빈 공간 (피라미드 위치) */}
             <div style={{ backgroundColor: "#000000" }} />
 
-            {/* 우측: 270도 회전 */}
+            {/* 우측: 270도 회전 + 위아래 뒤집기 */}
             <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
               <video
                 key="right-270"
@@ -294,7 +294,7 @@ export default function ArchivePage() {
                   height: "100%",
                   objectFit: "cover",
                   objectPosition: "center",
-                  transform: `rotate(270deg) scale(${videoScale})`,
+                  transform: `rotate(270deg) scaleY(-1) scale(${videoScale})`,
                 }}
               />
             </div>
@@ -302,7 +302,7 @@ export default function ArchivePage() {
             {/* 빈 공간 (좌하단) */}
             <div style={{ backgroundColor: "#000000" }} />
 
-            {/* 하단: 0도 (원본) */}
+            {/* 하단: 0도 (원본) + 위아래 뒤집기 */}
             <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
               <video
                 key="bottom-0"
@@ -316,7 +316,7 @@ export default function ArchivePage() {
                   height: "100%",
                   objectFit: "cover",
                   objectPosition: "center",
-                  transform: `rotate(0deg) scale(${videoScale})`,
+                  transform: `rotate(0deg) scaleY(-1) scale(${videoScale})`,
                 }}
               />
             </div>
