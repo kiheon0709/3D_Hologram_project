@@ -355,33 +355,16 @@ export default function ArchivePage() {
           };
         });
 
-      // 모든 userId 추출 (중복 제거)
-      const userIds = [...new Set(videosWithUrls.map(v => v.userId).filter(Boolean))];
-      
-      // profiles 테이블에서 nickname 가져오기
-      const userIdToNickname = new Map<string, string>();
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, nickname")
-          .in("id", userIds);
-        
-        if (profiles) {
-          profiles.forEach(profile => {
-            // nickname이 있으면 nickname 사용, 없으면 userId 사용하지 않음 (undefined)
-            if (profile.nickname) {
-              userIdToNickname.set(profile.id, profile.nickname);
-            }
-          });
-        }
-      }
-
       // holograms 테이블에서 hologram_type과 user_id 정보 가져오기
       const videoUrls = videosWithUrls.map(v => v.publicUrl);
-      const { data: holograms } = await supabase
+      const { data: holograms, error: hologramsError } = await supabase
         .from("holograms")
         .select("video_url, hologram_type, user_id")
         .in("video_url", videoUrls);
+      
+      if (hologramsError) {
+        console.error("holograms 조회 오류:", hologramsError);
+      }
       
       const urlToHologramType = new Map<string, "1side" | "4sides">();
       const urlToUserId = new Map<string, string>();
@@ -394,17 +377,27 @@ export default function ArchivePage() {
         });
       }
 
-      // holograms 테이블에서 가져온 user_id로 nickname 다시 조회
-      const hologramUserIds = [...new Set(Array.from(urlToUserId.values()).filter(Boolean))];
-      if (hologramUserIds.length > 0) {
-        const { data: hologramProfiles } = await supabase
+      // holograms 테이블에서 가져온 user_id로 nickname 조회
+      const allUserIds = [
+        ...new Set([
+          ...Array.from(urlToUserId.values()).filter(Boolean),
+          ...videosWithUrls.map(v => v.userId).filter(Boolean)
+        ])
+      ];
+      
+      const userIdToNickname = new Map<string, string>();
+      if (allUserIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
           .from("profiles")
           .select("id, nickname")
-          .in("id", hologramUserIds);
+          .in("id", allUserIds);
         
-        if (hologramProfiles) {
-          hologramProfiles.forEach(profile => {
-            // nickname이 있으면 nickname 사용, 없으면 userId 사용하지 않음 (undefined)
+        if (profilesError) {
+          console.error("profiles 조회 오류:", profilesError);
+        }
+        
+        if (profiles) {
+          profiles.forEach(profile => {
             if (profile.nickname) {
               userIdToNickname.set(profile.id, profile.nickname);
             }
@@ -419,10 +412,15 @@ export default function ArchivePage() {
         // userIdToNickname에서 nickname 가져오기 (없으면 undefined)
         const nickname = finalUserId ? userIdToNickname.get(finalUserId) : undefined;
         
+        // 디버깅 로그
+        if (finalUserId && !nickname) {
+          console.warn(`닉네임을 찾을 수 없음: userId=${finalUserId}, videoUrl=${video.publicUrl}`);
+        }
+        
         return {
           ...video,
           userId: finalUserId,
-          nickname: nickname || undefined, // nickname이 있으면 사용, 없으면 undefined
+          nickname: nickname || undefined,
           hologramType: urlToHologramType.get(video.publicUrl) || "1side",
         };
       });
