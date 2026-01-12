@@ -329,9 +329,29 @@ export default function ArchivePage() {
             .from(bucket)
             .getPublicUrl(`veo_video/${file.name}`);
           
-          // 파일명에서 userId 추출: {userId}_{번호}.mp4
+          // 파일명에서 userId 추출: {userId}_{번호}.mp4 또는 anonymous_{timestamp}.mp4
           const fileNameWithoutExt = file.name.replace(".mp4", "");
-          const userId = fileNameWithoutExt.split("_")[0];
+          let userId: string | undefined;
+          if (fileNameWithoutExt.startsWith("anonymous_")) {
+            userId = undefined; // anonymous는 userId 없음
+          } else {
+            // UUID 형식인지 확인 (8-4-4-4-12 형식)
+            const parts = fileNameWithoutExt.split("_");
+            if (parts.length >= 2) {
+              const firstPart = parts[0];
+              // UUID 형식 체크 (예: 5e8d6294-61d9-4587-a869-0f7eb2294219)
+              if (firstPart.includes("-") && firstPart.length >= 8) {
+                userId = firstPart;
+              } else if (firstPart.length === 36) {
+                // 전체 UUID가 하나의 파트인 경우
+                userId = firstPart;
+              } else {
+                userId = firstPart;
+              }
+            } else {
+              userId = undefined;
+            }
+          }
           
           return {
             name: file.name,
@@ -398,10 +418,13 @@ export default function ArchivePage() {
       const videosWithNicknames = videosWithUrls.map(video => {
         // holograms 테이블에서 가져온 user_id를 우선 사용, 없으면 파일명에서 추출한 userId 사용
         const finalUserId = urlToUserId.get(video.publicUrl) || video.userId;
+        const nickname = finalUserId ? userIdToNickname.get(finalUserId) : undefined;
+        
         return {
           ...video,
           userId: finalUserId,
-          nickname: finalUserId ? (userIdToNickname.get(finalUserId) || finalUserId) : undefined,
+          // nickname이 있으면 nickname 사용, 없으면 undefined (표시 시 userId로 fallback)
+          nickname: nickname && nickname !== finalUserId ? nickname : undefined,
           hologramType: urlToHologramType.get(video.publicUrl) || "1side",
         };
       });
