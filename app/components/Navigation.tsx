@@ -14,6 +14,17 @@ export default function Navigation() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  // 모바일 감지
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     // 현재 세션 확인
@@ -80,7 +91,7 @@ export default function Navigation() {
         backgroundColor: "#ffffff",
         borderBottom: "1px solid #e5e5e5",
         zIndex: 1000,
-        padding: "0 24px",
+        padding: isMobile ? "12px 16px" : "0 24px",
       }}
     >
       <div
@@ -88,96 +99,36 @@ export default function Navigation() {
           maxWidth: "1280px",
           margin: "0 auto",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          height: "64px",
+          flexDirection: "column",
+          gap: isMobile ? "12px" : "16px",
         }}
       >
-        {/* 로고 */}
-        <Link
-          href="/"
-          style={{
-            fontSize: "20px",
-            fontWeight: 700,
-            color: "#000000",
-            textDecoration: "none",
-            letterSpacing: "-0.02em",
-          }}
-        >
-          HoloFrame
-        </Link>
-
-        {/* 메뉴 */}
+        {/* 첫 번째 줄: HoloFrame 제목 + 프로필 */}
         <div
           style={{
             display: "flex",
-            gap: "32px",
             alignItems: "center",
+            justifyContent: "space-between",
+            width: "100%",
+            height: isMobile ? "auto" : "64px",
           }}
         >
+          {/* 로고 */}
           <Link
             href="/"
             style={{
-              fontSize: "14px",
-              fontWeight: pathname === "/" ? 600 : 400,
-              color: pathname === "/" ? "#000000" : "#666666",
+              fontSize: isMobile ? "18px" : "20px",
+              fontWeight: 700,
+              color: "#000000",
               textDecoration: "none",
-              transition: "color 0.2s",
+              letterSpacing: "-0.02em",
             }}
           >
-            Home
-          </Link>
-          <Link
-            href="/archive"
-            style={{
-              fontSize: "14px",
-              fontWeight: pathname === "/archive" ? 600 : 400,
-              color: pathname === "/archive" ? "#000000" : "#666666",
-              textDecoration: "none",
-              transition: "color 0.2s",
-            }}
-          >
-            Archive
-          </Link>
-          <Link
-            href="/make"
-            style={{
-              fontSize: "14px",
-              fontWeight: pathname === "/make" ? 600 : 400,
-              color: pathname === "/make" ? "#000000" : "#666666",
-              textDecoration: "none",
-              transition: "color 0.2s",
-            }}
-          >
-            Make
-          </Link>
-          <Link
-            href="/mypage"
-            style={{
-              fontSize: "14px",
-              fontWeight: pathname === "/mypage" ? 600 : 400,
-              color: pathname === "/mypage" ? "#000000" : "#666666",
-              textDecoration: "none",
-              transition: "color 0.2s",
-            }}
-          >
-            MyPage
-          </Link>
-          <Link
-            href="/admin"
-            style={{
-              fontSize: "14px",
-              fontWeight: pathname === "/admin" ? 600 : 400,
-              color: pathname === "/admin" ? "#000000" : "#666666",
-              textDecoration: "none",
-              transition: "color 0.2s",
-            }}
-          >
-            Admin
+            HoloFrame
           </Link>
 
           {/* 프로필 섹션 */}
-          <div style={{ position: "relative", marginLeft: "32px" }}>
+          <div style={{ position: "relative" }}>
             {user ? (
               <div style={{ position: "relative" }}>
                 <button
@@ -216,9 +167,11 @@ export default function Navigation() {
                   >
                     {user.email?.charAt(0).toUpperCase() || "U"}
                   </div>
-                  <span style={{ fontSize: "14px", color: "#333333" }}>
-                    {profile?.nickname || user.email?.split("@")[0] || "User"}
-                  </span>
+                  {!isMobile && (
+                    <span style={{ fontSize: "14px", color: "#333333" }}>
+                      {profile?.nickname || user.email?.split("@")[0] || "User"}
+                    </span>
+                  )}
                   <svg
                     width="12"
                     height="12"
@@ -290,12 +243,12 @@ export default function Navigation() {
                 )}
               </div>
             ) : (
-              <div style={{ display: "flex", gap: "8px", marginLeft: "32px" }}>
+              <div style={{ display: "flex", gap: "8px" }}>
                 <button
                   onClick={() => openAuthModal("login")}
                   style={{
-                    padding: "8px 16px",
-                    fontSize: "14px",
+                    padding: isMobile ? "6px 12px" : "8px 16px",
+                    fontSize: isMobile ? "13px" : "14px",
                     fontWeight: 500,
                     border: "1px solid #e5e5e5",
                     borderRadius: "8px",
@@ -316,8 +269,8 @@ export default function Navigation() {
                 <button
                   onClick={() => openAuthModal("signup")}
                   style={{
-                    padding: "8px 16px",
-                    fontSize: "14px",
+                    padding: isMobile ? "6px 12px" : "8px 16px",
+                    fontSize: isMobile ? "13px" : "14px",
                     fontWeight: 600,
                     border: "1px solid #000000",
                     borderRadius: "8px",
@@ -338,6 +291,85 @@ export default function Navigation() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* 두 번째 줄: 메뉴 */}
+        <div
+          style={{
+            display: "flex",
+            gap: isMobile ? "16px" : "32px",
+            alignItems: "center",
+            flexWrap: "wrap",
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            paddingBottom: isMobile ? "4px" : "0",
+          }}
+        >
+          <Link
+            href="/"
+            style={{
+              fontSize: isMobile ? "13px" : "14px",
+              fontWeight: pathname === "/" ? 600 : 400,
+              color: pathname === "/" ? "#000000" : "#666666",
+              textDecoration: "none",
+              transition: "color 0.2s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Home
+          </Link>
+          <Link
+            href="/archive"
+            style={{
+              fontSize: isMobile ? "13px" : "14px",
+              fontWeight: pathname === "/archive" ? 600 : 400,
+              color: pathname === "/archive" ? "#000000" : "#666666",
+              textDecoration: "none",
+              transition: "color 0.2s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Archive
+          </Link>
+          <Link
+            href="/make"
+            style={{
+              fontSize: isMobile ? "13px" : "14px",
+              fontWeight: pathname === "/make" ? 600 : 400,
+              color: pathname === "/make" ? "#000000" : "#666666",
+              textDecoration: "none",
+              transition: "color 0.2s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Make
+          </Link>
+          <Link
+            href="/mypage"
+            style={{
+              fontSize: isMobile ? "13px" : "14px",
+              fontWeight: pathname === "/mypage" ? 600 : 400,
+              color: pathname === "/mypage" ? "#000000" : "#666666",
+              textDecoration: "none",
+              transition: "color 0.2s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            MyPage
+          </Link>
+          <Link
+            href="/admin"
+            style={{
+              fontSize: isMobile ? "13px" : "14px",
+              fontWeight: pathname === "/admin" ? 600 : 400,
+              color: pathname === "/admin" ? "#000000" : "#666666",
+              textDecoration: "none",
+              transition: "color 0.2s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Admin
+          </Link>
         </div>
       </div>
 
