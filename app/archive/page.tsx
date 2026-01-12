@@ -335,21 +335,13 @@ export default function ArchivePage() {
           if (fileNameWithoutExt.startsWith("anonymous_")) {
             userId = undefined; // anonymous는 userId 없음
           } else {
-            // UUID 형식인지 확인 (8-4-4-4-12 형식)
-            const parts = fileNameWithoutExt.split("_");
-            if (parts.length >= 2) {
-              const firstPart = parts[0];
-              // UUID 형식 체크 (예: 5e8d6294-61d9-4587-a869-0f7eb2294219)
-              if (firstPart.includes("-") && firstPart.length >= 8) {
-                userId = firstPart;
-              } else if (firstPart.length === 36) {
-                // 전체 UUID가 하나의 파트인 경우
-                userId = firstPart;
-              } else {
-                userId = firstPart;
-              }
+            // 첫 번째 언더스코어(_) 앞부분이 userId
+            const firstUnderscoreIndex = fileNameWithoutExt.indexOf("_");
+            if (firstUnderscoreIndex > 0) {
+              userId = fileNameWithoutExt.substring(0, firstUnderscoreIndex);
             } else {
-              userId = undefined;
+              // 언더스코어가 없으면 전체가 userId일 수 있음 (UUID 형식)
+              userId = fileNameWithoutExt;
             }
           }
           
@@ -376,7 +368,10 @@ export default function ArchivePage() {
         
         if (profiles) {
           profiles.forEach(profile => {
-            userIdToNickname.set(profile.id, profile.nickname || profile.id);
+            // nickname이 있으면 nickname 사용, 없으면 userId 사용하지 않음 (undefined)
+            if (profile.nickname) {
+              userIdToNickname.set(profile.id, profile.nickname);
+            }
           });
         }
       }
@@ -409,7 +404,10 @@ export default function ArchivePage() {
         
         if (hologramProfiles) {
           hologramProfiles.forEach(profile => {
-            userIdToNickname.set(profile.id, profile.nickname || profile.id);
+            // nickname이 있으면 nickname 사용, 없으면 userId 사용하지 않음 (undefined)
+            if (profile.nickname) {
+              userIdToNickname.set(profile.id, profile.nickname);
+            }
           });
         }
       }
@@ -418,13 +416,13 @@ export default function ArchivePage() {
       const videosWithNicknames = videosWithUrls.map(video => {
         // holograms 테이블에서 가져온 user_id를 우선 사용, 없으면 파일명에서 추출한 userId 사용
         const finalUserId = urlToUserId.get(video.publicUrl) || video.userId;
+        // userIdToNickname에서 nickname 가져오기 (없으면 undefined)
         const nickname = finalUserId ? userIdToNickname.get(finalUserId) : undefined;
         
         return {
           ...video,
           userId: finalUserId,
-          // nickname이 있으면 nickname 사용, 없으면 undefined (표시 시 userId로 fallback)
-          nickname: nickname && nickname !== finalUserId ? nickname : undefined,
+          nickname: nickname || undefined, // nickname이 있으면 사용, 없으면 undefined
           hologramType: urlToHologramType.get(video.publicUrl) || "1side",
         };
       });
