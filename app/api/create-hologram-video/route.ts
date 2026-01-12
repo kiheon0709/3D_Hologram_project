@@ -149,7 +149,7 @@ async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<str
     ],
     parameters: {
       storageUri: `gs://${gcsBucketName}/`,
-      durationSeconds: 6,
+      durationSeconds: 4,
       aspectRatio: "16:9",
       resolution: "1080p",
       personGeneration: "allow_adult",

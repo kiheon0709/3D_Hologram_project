@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       parameters: {
-        durationSeconds: 6,
+        durationSeconds: 4,
         aspectRatio: aspectRatio,
         resolution: '1080p',
         personGeneration: 'allow_adult',
