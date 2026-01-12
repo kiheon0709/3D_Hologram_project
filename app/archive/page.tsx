@@ -17,8 +17,6 @@ export default function ArchivePage() {
   const [videos, setVideos] = useState<VideoFile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
-  const videoRef = React.useRef<HTMLVideoElement>(null);
-
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // 전체화면 진입 시 가로 모드로 고정
