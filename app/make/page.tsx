@@ -374,6 +374,7 @@ export default function MakePage() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
             title: `홀로그램 작품 ${new Date().toLocaleDateString("ko-KR")}`,

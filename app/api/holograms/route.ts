@@ -90,12 +90,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 현재 로그인된 사용자 확인 (향후 인증 구현 시 사용)
-    // const { data: { user } } = await supabase.auth.getUser();
-    // const user_id = user?.id;
+    // Authorization 헤더에서 토큰 추출
+    const authHeader = req.headers.get("authorization");
+    let user_id: string | null = null;
     
-    // 임시: user_id를 null로 설정 (인증 없이)
-    const user_id = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      try {
+        // 토큰으로 사용자 정보 가져오기
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (!authError && user) {
+          user_id = user.id;
+        }
+      } catch (err) {
+        console.error("사용자 인증 오류:", err);
+        // 인증 실패해도 계속 진행 (user_id는 null)
+      }
+    }
 
     const { data: hologram, error } = await supabase
       .from("holograms")
