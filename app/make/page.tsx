@@ -42,6 +42,17 @@ export default function MakePage() {
   const [userPrompt, setUserPrompt] = useState<string>("");
   const [hologramType, setHologramType] = useState<"4sides" | "1side">("1side");
   const [videoPlatform, setVideoPlatform] = useState<"replicate" | "veo">("veo");
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  // 모바일 감지
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // 로그인 확인
   useEffect(() => {
@@ -574,27 +585,27 @@ export default function MakePage() {
   }
 
   return (
-    <main style={{ minHeight: "calc(100vh - 64px)", padding: "24px 24px" }}>
-      <div style={{ width: "100%", margin: "0 auto" }}>
-        <h1 style={{ fontSize: "32px", fontWeight: 700, marginBottom: "8px", color: "#000000" }}>
+    <main style={{ minHeight: "calc(100vh - 64px)", padding: isMobile ? "16px" : "24px" }}>
+      <div style={{ width: "100%", maxWidth: "1200px", margin: "0 auto" }}>
+        <h1 style={{ fontSize: isMobile ? "24px" : "32px", fontWeight: 700, marginBottom: "8px", color: "#000000" }}>
           영상 만들기
         </h1>
-        <p style={{ fontSize: "16px", color: "#666666", marginBottom: "32px" }}>
+        <p style={{ fontSize: isMobile ? "14px" : "16px", color: "#666666", marginBottom: isMobile ? "24px" : "32px" }}>
           한 장의 사진으로 스마트폰 3D 홀로그램 프로젝터용 영상을 만들어 보세요.
         </p>
 
-        {/* 좌우 분할 레이아웃 */}
-        <div style={{ display: "flex", gap: "32px", alignItems: "flex-start", width: "100%" }}>
+        {/* 좌우 분할 레이아웃 (모바일에서는 세로 스택) */}
+        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "24px" : "32px", alignItems: "flex-start", width: "100%" }}>
           {/* 좌측: 입력 폼 */}
-          <div style={{ flex: "1 1 0", minWidth: 0 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          <div style={{ flex: isMobile ? "none" : "1 1 0", minWidth: 0, width: isMobile ? "100%" : "auto" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? "20px" : "24px" }}>
             <label
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               style={{
                 border: "2px dashed #cccccc",
                 borderRadius: "12px",
-                padding: "32px",
+                padding: isMobile ? "24px 16px" : "32px",
                 cursor: "pointer",
                 textAlign: "center",
                 backgroundColor: "#fafafa",
@@ -616,10 +627,10 @@ export default function MakePage() {
                 style={{ display: "none" }}
               />
               <div>
-                <p style={{ fontSize: "16px", fontWeight: 600, marginBottom: "8px", color: "#000000" }}>
+                <p style={{ fontSize: isMobile ? "14px" : "16px", fontWeight: 600, marginBottom: "8px", color: "#000000" }}>
                   사진을 드래그하거나 클릭해서 업로드
                 </p>
-                <p style={{ fontSize: "14px", color: "#666666", margin: 0 }}>
+                <p style={{ fontSize: isMobile ? "12px" : "14px", color: "#666666", margin: 0 }}>
                   인물 또는 사물 사진 1장을 선택하세요. 배경은 AI가 자동으로 제거합니다.
                 </p>
                 {selectedFile && (
@@ -654,7 +665,7 @@ export default function MakePage() {
             </label>
 
             <div>
-              <label style={{ display: "block", fontSize: "14px", fontWeight: 600, marginBottom: "8px", color: "#000000" }}>
+              <label style={{ display: "block", fontSize: isMobile ? "13px" : "14px", fontWeight: 600, marginBottom: "8px", color: "#000000" }}>
                 사용할 기기
               </label>
               <select
@@ -680,10 +691,10 @@ export default function MakePage() {
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: "14px", fontWeight: 600, marginBottom: "12px", color: "#000000" }}>
+              <label style={{ display: "block", fontSize: isMobile ? "13px" : "14px", fontWeight: 600, marginBottom: "12px", color: "#000000" }}>
                 홀로그램 타입
               </label>
-              <div style={{ display: "flex", gap: "24px", marginBottom: "8px" }}>
+              <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "12px" : "24px", marginBottom: "8px" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
                   <input
                     type="radio"
@@ -693,7 +704,7 @@ export default function MakePage() {
                     onChange={(e) => setHologramType(e.target.value as "4sides" | "1side")}
                     style={{ width: "18px", height: "18px", cursor: "pointer" }}
                   />
-                  <span style={{ fontSize: "14px", color: "#000000" }}>
+                  <span style={{ fontSize: isMobile ? "13px" : "14px", color: "#000000" }}>
                     1면 (단일 화면)
                   </span>
                 </label>
@@ -706,7 +717,7 @@ export default function MakePage() {
                     onChange={(e) => setHologramType(e.target.value as "4sides" | "1side")}
                     style={{ width: "18px", height: "18px", cursor: "pointer" }}
                   />
-                  <span style={{ fontSize: "14px", color: "#000000" }}>
+                  <span style={{ fontSize: isMobile ? "13px" : "14px", color: "#000000" }}>
                     4방면 (십자가 형태)
                   </span>
                 </label>
@@ -737,7 +748,7 @@ export default function MakePage() {
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: "14px", fontWeight: 600, marginBottom: "8px", color: "#000000" }}>
+              <label style={{ display: "block", fontSize: isMobile ? "13px" : "14px", fontWeight: 600, marginBottom: "8px", color: "#000000" }}>
                 추가 프롬프트 (선택사항)
               </label>
               <textarea
@@ -825,13 +836,13 @@ export default function MakePage() {
           </div>
 
           {/* 우측: 결과물 표시 */}
-          <div style={{ flex: "1 1 0", minWidth: 0, position: "sticky", top: "24px" }}>
+          <div style={{ flex: isMobile ? "none" : "1 1 0", minWidth: 0, width: isMobile ? "100%" : "auto", position: isMobile ? "relative" : "sticky", top: isMobile ? "0" : "24px" }}>
             <div
               style={{
                 backgroundColor: "#000000",
                 borderRadius: "12px",
-                padding: "24px",
-                minHeight: "600px",
+                padding: isMobile ? "20px" : "24px",
+                minHeight: isMobile ? "400px" : "600px",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
