@@ -11,13 +11,15 @@ type VideoFile = {
   publicUrl: string;
   userId?: string;
   nickname?: string;
+  hologramType?: "1side" | "4sides";
 };
 
 export default function ArchivePage() {
   const [videos, setVideos] = useState<VideoFile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<VideoFile | null>(null);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const [videoScale, setVideoScale] = useState<number>(1.0);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // 비디오 다운로드 함수
@@ -152,10 +154,25 @@ export default function ArchivePage() {
         }
       }
 
-      // 각 비디오에 nickname 추가
+      // holograms 테이블에서 hologram_type 정보 가져오기
+      const videoUrls = videosWithUrls.map(v => v.publicUrl);
+      const { data: holograms } = await supabase
+        .from("holograms")
+        .select("video_url, hologram_type")
+        .in("video_url", videoUrls);
+      
+      const urlToHologramType = new Map<string, "1side" | "4sides">();
+      if (holograms) {
+        holograms.forEach(h => {
+          urlToHologramType.set(h.video_url, h.hologram_type);
+        });
+      }
+
+      // 각 비디오에 nickname과 hologramType 추가
       const videosWithNicknames = videosWithUrls.map(video => ({
         ...video,
         nickname: video.userId ? (userIdToNickname.get(video.userId) || video.userId) : undefined,
+        hologramType: urlToHologramType.get(video.publicUrl) || "1side",
       }));
 
       setVideos(videosWithNicknames);
@@ -183,7 +200,9 @@ export default function ArchivePage() {
   }
 
   if (selectedVideo) {
-    const video = videos.find((v) => v.publicUrl === selectedVideo);
+    const video = selectedVideo;
+    const hologramType = video.hologramType || "1side";
+    
     return (
       <main
         style={{
@@ -197,20 +216,183 @@ export default function ArchivePage() {
           alignItems: "center",
           justifyContent: "center",
           zIndex: 9999,
+          padding: "20px",
         }}
       >
-        <video
-          ref={videoRef}
-          src={selectedVideo}
-          controls
-          autoPlay
-          loop
-          playsInline
-          style={{
-            maxWidth: "90vw",
-            maxHeight: "90vh",
-          }}
-        />
+        {hologramType === "4sides" ? (
+          /* 4방면 홀로그램 십자가 배치 */
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "600px",
+              aspectRatio: "1 / 1",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gridTemplateRows: "1fr 1fr 1fr",
+              gap: 0,
+            }}
+          >
+            {/* 빈 공간 (좌상단) */}
+            <div style={{ backgroundColor: "#000000" }} />
+
+            {/* 상단: 180도 회전 */}
+            <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
+              <video
+                key="top-180"
+                ref={videoRef}
+                src={video.publicUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: "center",
+                  transform: `rotate(180deg) scale(${videoScale})`,
+                }}
+              />
+            </div>
+
+            {/* 빈 공간 (우상단) */}
+            <div style={{ backgroundColor: "#000000" }} />
+
+            {/* 좌측: 90도 회전 */}
+            <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
+              <video
+                key="left-90"
+                src={video.publicUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: "center",
+                  transform: `rotate(90deg) scale(${videoScale})`,
+                }}
+              />
+            </div>
+
+            {/* 중앙 빈 공간 (피라미드 위치) */}
+            <div style={{ backgroundColor: "#000000" }} />
+
+            {/* 우측: 270도 회전 */}
+            <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
+              <video
+                key="right-270"
+                src={video.publicUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: "center",
+                  transform: `rotate(270deg) scale(${videoScale})`,
+                }}
+              />
+            </div>
+
+            {/* 빈 공간 (좌하단) */}
+            <div style={{ backgroundColor: "#000000" }} />
+
+            {/* 하단: 0도 (원본) */}
+            <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
+              <video
+                key="bottom-0"
+                src={video.publicUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: "center",
+                  transform: `rotate(0deg) scale(${videoScale})`,
+                }}
+              />
+            </div>
+
+            {/* 빈 공간 (우하단) */}
+            <div style={{ backgroundColor: "#000000" }} />
+          </div>
+        ) : (
+          <video
+            ref={videoRef}
+            src={video.publicUrl}
+            controls
+            autoPlay
+            loop
+            playsInline
+            style={{
+              maxWidth: "90vw",
+              maxHeight: "90vh",
+            }}
+          />
+        )}
+        
+        {/* 스케일 조절 컨트롤 (4방면일 때만) */}
+        {hologramType === "4sides" && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "20px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              padding: "12px 16px",
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              borderRadius: "8px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              minWidth: "200px",
+            }}
+          >
+            <label
+              style={{
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: 600,
+                textAlign: "center",
+              }}
+            >
+              확대: {videoScale.toFixed(1)}x
+            </label>
+            <input
+              type="range"
+              min="0.5"
+              max="2.0"
+              step="0.1"
+              value={videoScale}
+              onChange={(e) => setVideoScale(Number(e.target.value))}
+              style={{
+                width: "100%",
+                cursor: "pointer",
+                height: "6px",
+              }}
+            />
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: "10px",
+                color: "rgba(255, 255, 255, 0.6)",
+              }}
+            >
+              <span>0.5x</span>
+              <span>2.0x</span>
+            </div>
+          </div>
+        )}
         <button
           onClick={() => setSelectedVideo(null)}
           style={{
@@ -231,7 +413,7 @@ export default function ArchivePage() {
           ← 뒤로가기
         </button>
         <button
-          onClick={() => handleDownload(selectedVideo, video?.name)}
+          onClick={() => handleDownload(video.publicUrl, video?.name)}
           disabled={isDownloading}
           style={{
             position: "absolute",
@@ -290,7 +472,7 @@ export default function ArchivePage() {
             {videos.map((video) => (
               <div
                 key={video.id}
-                onClick={() => setSelectedVideo(video.publicUrl)}
+                onClick={() => setSelectedVideo(video)}
                 style={{
                   border: "1px solid #e5e5e5",
                   borderRadius: "12px",

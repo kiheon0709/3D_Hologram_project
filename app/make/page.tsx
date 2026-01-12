@@ -870,6 +870,7 @@ export default function MakePage() {
                       {/* 상단: 180도 회전 */}
                       <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
                         <video
+                          key="top-180"
                           src={hologramVideoUrl}
                           autoPlay
                           loop
@@ -891,6 +892,7 @@ export default function MakePage() {
                       {/* 좌측: 90도 회전 */}
                       <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
                         <video
+                          key="left-90"
                           src={hologramVideoUrl}
                           autoPlay
                           loop
@@ -912,6 +914,7 @@ export default function MakePage() {
                       {/* 우측: 270도 회전 */}
                       <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
                         <video
+                          key="right-270"
                           src={hologramVideoUrl}
                           autoPlay
                           loop
@@ -933,6 +936,7 @@ export default function MakePage() {
                       {/* 하단: 0도 (원본) */}
                       <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
                         <video
+                          key="bottom-0"
                           src={hologramVideoUrl}
                           autoPlay
                           loop

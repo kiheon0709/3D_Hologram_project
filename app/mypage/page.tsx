@@ -350,26 +350,135 @@ export default function MyPage() {
                 <div
                   style={{
                     width: "100%",
-                    aspectRatio: "16 / 9",
+                    aspectRatio: selectedHologram.hologram_type === "4sides" ? "1 / 1" : "16 / 9",
                     backgroundColor: "#000000",
                     borderRadius: "8px",
                     overflow: "hidden",
                     marginBottom: "24px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  <video
-                    src={selectedHologram.video_url}
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "contain",
-                    }}
-                  />
+                  {selectedHologram.hologram_type === "4sides" ? (
+                    /* 4방면 홀로그램 십자가 배치 */
+                    <div
+                      style={{
+                        width: "100%",
+                        maxWidth: "500px",
+                        aspectRatio: "1 / 1",
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr 1fr",
+                        gridTemplateRows: "1fr 1fr 1fr",
+                        gap: 0,
+                      }}
+                    >
+                      {/* 빈 공간 (좌상단) */}
+                      <div style={{ backgroundColor: "#000000" }} />
+
+                      {/* 상단: 180도 회전 */}
+                      <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
+                        <video
+                          key="top-180"
+                          src={selectedHologram.video_url}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            objectPosition: "center",
+                            transform: "rotate(180deg)",
+                          }}
+                        />
+                      </div>
+
+                      {/* 빈 공간 (우상단) */}
+                      <div style={{ backgroundColor: "#000000" }} />
+
+                      {/* 좌측: 90도 회전 */}
+                      <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
+                        <video
+                          key="left-90"
+                          src={selectedHologram.video_url}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            objectPosition: "center",
+                            transform: "rotate(90deg)",
+                          }}
+                        />
+                      </div>
+
+                      {/* 중앙 빈 공간 (피라미드 위치) */}
+                      <div style={{ backgroundColor: "#000000" }} />
+
+                      {/* 우측: 270도 회전 */}
+                      <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
+                        <video
+                          key="right-270"
+                          src={selectedHologram.video_url}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            objectPosition: "center",
+                            transform: "rotate(270deg)",
+                          }}
+                        />
+                      </div>
+
+                      {/* 빈 공간 (좌하단) */}
+                      <div style={{ backgroundColor: "#000000" }} />
+
+                      {/* 하단: 0도 (원본) */}
+                      <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
+                        <video
+                          key="bottom-0"
+                          src={selectedHologram.video_url}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            objectPosition: "center",
+                            transform: "rotate(0deg)",
+                          }}
+                        />
+                      </div>
+
+                      {/* 빈 공간 (우하단) */}
+                      <div style={{ backgroundColor: "#000000" }} />
+                    </div>
+                  ) : (
+                    <video
+                      src={selectedHologram.video_url}
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                      }}
+                    />
+                  )}
                 </div>
 
                 {/* 작품 정보 */}
