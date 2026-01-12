@@ -31,28 +31,54 @@ export default function MyPage() {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const fourSidesContainerRef = useRef<HTMLDivElement>(null);
 
-  // 전체화면 전환 함수
+  // 전체화면 전환 함수 (모바일 호환성 포함)
   const handleFullscreen = async () => {
     const container = fourSidesContainerRef.current;
     if (!container) return;
 
     try {
       if (!document.fullscreenElement) {
-        await container.requestFullscreen();
+        // 모바일 브라우저 호환성
+        if (container.requestFullscreen) {
+          await container.requestFullscreen();
+        } else if ((container as any).webkitRequestFullscreen) {
+          await (container as any).webkitRequestFullscreen();
+        } else if ((container as any).mozRequestFullScreen) {
+          await (container as any).mozRequestFullScreen();
+        } else if ((container as any).msRequestFullscreen) {
+          await (container as any).msRequestFullscreen();
+        }
         setIsFullscreen(true);
       } else {
-        await document.exitFullscreen();
+        // 전체화면 종료
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozCancelFullScreen) {
+          await (document as any).mozCancelFullScreen();
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen();
+        }
         setIsFullscreen(false);
       }
     } catch (err) {
       console.error('전체화면 오류:', err);
+      // 모바일에서는 CSS로 대체
+      setIsFullscreen(!isFullscreen);
     }
   };
 
-  // 전체화면 상태 감지
+  // 전체화면 상태 감지 (모바일 호환성 포함)
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const isFullscreenActive = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      setIsFullscreen(isFullscreenActive);
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);

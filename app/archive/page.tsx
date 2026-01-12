@@ -23,29 +23,59 @@ export default function ArchivePage() {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fourSidesContainerRef = useRef<HTMLDivElement>(null);
+  const videoTopRef = useRef<HTMLVideoElement>(null);
+  const videoLeftRef = useRef<HTMLVideoElement>(null);
+  const videoRightRef = useRef<HTMLVideoElement>(null);
+  const videoBottomRef = useRef<HTMLVideoElement>(null);
 
-  // 전체화면 전환 함수
+  // 전체화면 전환 함수 (모바일 호환성 포함)
   const handleFullscreen = async () => {
     const container = fourSidesContainerRef.current;
     if (!container) return;
 
     try {
       if (!document.fullscreenElement) {
-        await container.requestFullscreen();
+        // 모바일 브라우저 호환성
+        if (container.requestFullscreen) {
+          await container.requestFullscreen();
+        } else if ((container as any).webkitRequestFullscreen) {
+          await (container as any).webkitRequestFullscreen();
+        } else if ((container as any).mozRequestFullScreen) {
+          await (container as any).mozRequestFullScreen();
+        } else if ((container as any).msRequestFullscreen) {
+          await (container as any).msRequestFullscreen();
+        }
         setIsFullscreen(true);
       } else {
-        await document.exitFullscreen();
+        // 전체화면 종료
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozCancelFullScreen) {
+          await (document as any).mozCancelFullScreen();
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen();
+        }
         setIsFullscreen(false);
       }
     } catch (err) {
       console.error('전체화면 오류:', err);
+      // 모바일에서는 CSS로 대체
+      setIsFullscreen(!isFullscreen);
     }
   };
 
-  // 전체화면 상태 감지
+  // 전체화면 상태 감지 (모바일 호환성 포함)
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const isFullscreenActive = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      setIsFullscreen(isFullscreenActive);
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -60,6 +90,144 @@ export default function ArchivePage() {
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
   }, []);
+
+  // 4방면 홀로그램을 하나의 영상으로 다운로드하는 함수
+  const handleDownload4Sides = async (videoUrl: string, videoName?: string) => {
+    try {
+      setIsDownloading(true);
+      
+      // Canvas와 MediaRecorder를 사용하여 4방면을 하나의 영상으로 합성
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Canvas context를 가져올 수 없습니다.');
+      }
+
+      // 캔버스 크기 설정 (3x3 그리드, 각 셀 300x300)
+      const cellSize = 300;
+      canvas.width = cellSize * 3;
+      canvas.height = cellSize * 3;
+
+      // 비디오 요소들 생성
+      const videos = [
+        { video: document.createElement('video'), transform: 'rotate(180deg) scaleY(-1)' },
+        { video: document.createElement('video'), transform: 'rotate(90deg) scaleY(-1)' },
+        { video: document.createElement('video'), transform: 'rotate(270deg) scaleY(-1)' },
+        { video: document.createElement('video'), transform: 'rotate(0deg) scaleY(-1)' },
+      ];
+
+      // 모든 비디오 로드 완료를 기다림
+      await Promise.all(videos.map(({ video }) => {
+        return new Promise((resolve, reject) => {
+          video.src = videoUrl;
+          video.crossOrigin = 'anonymous';
+          video.muted = true;
+          video.onloadeddata = () => resolve(undefined);
+          video.onerror = reject;
+        });
+      }));
+
+      // MediaRecorder 설정
+      const stream = canvas.captureStream(30); // 30fps
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp9',
+      });
+
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      return new Promise<void>((resolve, reject) => {
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: 'video/webm' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = videoName || `hologram-4sides-${Date.now()}.webm`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          videos.forEach(({ video }) => video.remove());
+          canvas.remove();
+          setIsDownloading(false);
+          resolve();
+        };
+
+        recorder.onerror = reject;
+
+        // 비디오 재생 시작
+        videos.forEach(({ video }) => {
+          video.currentTime = 0;
+          video.play();
+        });
+
+        // 녹화 시작
+        recorder.start();
+
+        // 애니메이션 루프
+        const drawFrame = () => {
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // 상단 (180도)
+          ctx.save();
+          ctx.translate(cellSize * 1.5, cellSize * 0.5);
+          ctx.rotate(Math.PI);
+          ctx.scale(1, -1);
+          ctx.drawImage(videos[0].video, -cellSize / 2, -cellSize / 2, cellSize, cellSize);
+          ctx.restore();
+
+          // 좌측 (90도)
+          ctx.save();
+          ctx.translate(cellSize * 0.5, cellSize * 1.5);
+          ctx.rotate(Math.PI / 2);
+          ctx.scale(1, -1);
+          ctx.drawImage(videos[1].video, -cellSize / 2, -cellSize / 2, cellSize, cellSize);
+          ctx.restore();
+
+          // 우측 (270도)
+          ctx.save();
+          ctx.translate(cellSize * 2.5, cellSize * 1.5);
+          ctx.rotate((Math.PI * 3) / 2);
+          ctx.scale(1, -1);
+          ctx.drawImage(videos[2].video, -cellSize / 2, -cellSize / 2, cellSize, cellSize);
+          ctx.restore();
+
+          // 하단 (0도)
+          ctx.save();
+          ctx.translate(cellSize * 1.5, cellSize * 2.5);
+          ctx.rotate(0);
+          ctx.scale(1, -1);
+          ctx.drawImage(videos[3].video, -cellSize / 2, -cellSize / 2, cellSize, cellSize);
+          ctx.restore();
+
+          // 비디오가 끝나면 녹화 종료 (일반적으로 4초)
+          if (videos[0].video.ended) {
+            recorder.stop();
+            return;
+          }
+
+          requestAnimationFrame(drawFrame);
+        };
+
+        // 첫 프레임 그리기 시작
+        requestAnimationFrame(drawFrame);
+
+        // 최대 5초 후 강제 종료 (안전장치)
+        setTimeout(() => {
+          if (recorder.state !== 'inactive') {
+            recorder.stop();
+          }
+        }, 5000);
+      });
+    } catch (error) {
+      console.error('4방면 다운로드 오류:', error);
+      alert('4방면 영상 다운로드에 실패했습니다. 다시 시도해주세요.');
+      setIsDownloading(false);
+    }
+  };
 
   // 비디오 다운로드 함수
   const handleDownload = async (videoUrl: string, videoName?: string) => {
@@ -280,7 +448,7 @@ export default function ArchivePage() {
             <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
               <video
                 key="top-180"
-                ref={videoRef}
+                ref={videoTopRef}
                 src={video.publicUrl}
                 autoPlay
                 loop
@@ -303,6 +471,7 @@ export default function ArchivePage() {
             <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
               <video
                 key="left-90"
+                ref={videoLeftRef}
                 src={video.publicUrl}
                 autoPlay
                 loop
@@ -325,6 +494,7 @@ export default function ArchivePage() {
             <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
               <video
                 key="right-270"
+                ref={videoRightRef}
                 src={video.publicUrl}
                 autoPlay
                 loop
@@ -347,6 +517,7 @@ export default function ArchivePage() {
             <div style={{ overflow: "hidden", backgroundColor: "#000000" }}>
               <video
                 key="bottom-0"
+                ref={videoBottomRef}
                 src={video.publicUrl}
                 autoPlay
                 loop
@@ -472,7 +643,13 @@ export default function ArchivePage() {
             </button>
           )}
           <button
-            onClick={() => handleDownload(video.publicUrl, video?.name)}
+            onClick={() => {
+              if (hologramType === "4sides") {
+                handleDownload4Sides(video.publicUrl, video?.name);
+              } else {
+                handleDownload(video.publicUrl, video?.name);
+              }
+            }}
             disabled={isDownloading}
             style={{
               padding: "10px 20px",
