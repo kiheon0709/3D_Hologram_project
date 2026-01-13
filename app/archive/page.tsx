@@ -20,6 +20,7 @@ export default function ArchivePage() {
   const [selectedVideo, setSelectedVideo] = useState<VideoFile | null>(null);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [videoScale, setVideoScale] = useState<number>(1.0);
+  const [isFlipped, setIsFlipped] = useState<boolean>(true); // 기본값은 true (상하반전)
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fourSidesContainerRef = useRef<HTMLDivElement>(null);
@@ -502,7 +503,7 @@ export default function ArchivePage() {
                   height: "100%",
                   objectFit: "cover",
                   objectPosition: "center",
-                  transform: `rotate(180deg) scaleY(-1) scale(${videoScale})`,
+                  transform: `rotate(180deg) ${isFlipped ? 'scaleY(-1)' : 'scaleY(1)'} scale(${videoScale})`,
                 }}
               />
             </div>
@@ -525,7 +526,7 @@ export default function ArchivePage() {
                   height: "100%",
                   objectFit: "cover",
                   objectPosition: "center",
-                  transform: `rotate(90deg) scaleY(-1) scale(${videoScale})`,
+                  transform: `rotate(90deg) ${isFlipped ? 'scaleY(-1)' : 'scaleY(1)'} scale(${videoScale})`,
                 }}
               />
             </div>
@@ -548,7 +549,7 @@ export default function ArchivePage() {
                   height: "100%",
                   objectFit: "cover",
                   objectPosition: "center",
-                  transform: `rotate(270deg) scaleY(-1) scale(${videoScale})`,
+                  transform: `rotate(270deg) ${isFlipped ? 'scaleY(-1)' : 'scaleY(1)'} scale(${videoScale})`,
                 }}
               />
             </div>
@@ -571,7 +572,7 @@ export default function ArchivePage() {
                   height: "100%",
                   objectFit: "cover",
                   objectPosition: "center",
-                  transform: `rotate(0deg) scaleY(-1) scale(${videoScale})`,
+                  transform: `rotate(0deg) ${isFlipped ? 'scaleY(-1)' : 'scaleY(1)'} scale(${videoScale})`,
                 }}
               />
             </div>
@@ -648,6 +649,31 @@ export default function ArchivePage() {
               <span>2.0x</span>
             </div>
           </div>
+        )}
+        
+        {/* 상하반전 토글 버튼 (4방면일 때만) */}
+        {hologramType === "4sides" && (
+          <button
+            onClick={() => setIsFlipped(!isFlipped)}
+            style={{
+              position: "absolute",
+              top: "180px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              padding: "10px 20px",
+              backgroundColor: isFlipped ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.1)",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
+              borderRadius: "8px",
+              color: "#ffffff",
+              cursor: "pointer",
+              fontSize: "14px",
+              fontWeight: 600,
+              zIndex: 10000,
+              transition: "background-color 0.2s",
+            }}
+          >
+            {isFlipped ? "↕ 상하반전 해제" : "↕ 상하반전"}
+          </button>
         )}
         <button
           onClick={() => setSelectedVideo(null)}
