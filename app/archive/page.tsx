@@ -599,7 +599,7 @@ export default function ArchivePage() {
           <div
             style={{
               position: "absolute",
-              bottom: "20px",
+              top: "80px",
               left: "50%",
               transform: "translateX(-50%)",
               padding: "12px 16px",
@@ -610,6 +610,7 @@ export default function ArchivePage() {
               flexDirection: "column",
               gap: "8px",
               minWidth: "200px",
+              zIndex: 10000,
             }}
           >
             <label
