@@ -595,85 +595,90 @@ export default function ArchivePage() {
           />
         )}
         
-        {/* 스케일 조절 컨트롤 (4방면일 때만) */}
+        {/* 스케일 조절 및 상하반전 컨트롤 (4방면일 때만) */}
         {hologramType === "4sides" && (
           <div
             style={{
               position: "absolute",
-              top: "80px",
+              top: "60px",
               left: "50%",
               transform: "translateX(-50%)",
-              padding: "12px 16px",
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-              borderRadius: "8px",
               display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-              minWidth: "200px",
+              flexDirection: "row",
+              gap: "12px",
+              alignItems: "center",
               zIndex: 10000,
             }}
           >
-            <label
-              style={{
-                color: "#ffffff",
-                fontSize: "12px",
-                fontWeight: 600,
-                textAlign: "center",
-              }}
-            >
-              확대: {videoScale.toFixed(1)}x
-            </label>
-            <input
-              type="range"
-              min="0.5"
-              max="2.0"
-              step="0.1"
-              value={videoScale}
-              onChange={(e) => setVideoScale(Number(e.target.value))}
-              style={{
-                width: "100%",
-                cursor: "pointer",
-                height: "6px",
-              }}
-            />
+            {/* 스케일 조절 컨트롤 */}
             <div
               style={{
+                padding: "12px 16px",
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: "8px",
                 display: "flex",
-                justifyContent: "space-between",
-                fontSize: "10px",
-                color: "rgba(255, 255, 255, 0.6)",
+                flexDirection: "column",
+                gap: "8px",
+                minWidth: "200px",
               }}
             >
-              <span>0.5x</span>
-              <span>2.0x</span>
+              <label
+                style={{
+                  color: "#ffffff",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  textAlign: "center",
+                }}
+              >
+                확대: {videoScale.toFixed(1)}x
+              </label>
+              <input
+                type="range"
+                min="0.5"
+                max="2.0"
+                step="0.1"
+                value={videoScale}
+                onChange={(e) => setVideoScale(Number(e.target.value))}
+                style={{
+                  width: "100%",
+                  cursor: "pointer",
+                  height: "6px",
+                }}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: "10px",
+                  color: "rgba(255, 255, 255, 0.6)",
+                }}
+              >
+                <span>0.5x</span>
+                <span>2.0x</span>
+              </div>
             </div>
+            
+            {/* 상하반전 토글 버튼 */}
+            <button
+              onClick={() => setIsFlipped(!isFlipped)}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: isFlipped ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                borderRadius: "8px",
+                color: "#ffffff",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: 600,
+                transition: "background-color 0.2s",
+                whiteSpace: "nowrap",
+                height: "fit-content",
+              }}
+            >
+              {isFlipped ? "↕ 상하반전 해제" : "↕ 상하반전"}
+            </button>
           </div>
-        )}
-        
-        {/* 상하반전 토글 버튼 (4방면일 때만) */}
-        {hologramType === "4sides" && (
-          <button
-            onClick={() => setIsFlipped(!isFlipped)}
-            style={{
-              position: "absolute",
-              top: "180px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              padding: "10px 20px",
-              backgroundColor: isFlipped ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.1)",
-              border: "1px solid rgba(255, 255, 255, 0.3)",
-              borderRadius: "8px",
-              color: "#ffffff",
-              cursor: "pointer",
-              fontSize: "14px",
-              fontWeight: 600,
-              zIndex: 10000,
-              transition: "background-color 0.2s",
-            }}
-          >
-            {isFlipped ? "↕ 상하반전 해제" : "↕ 상하반전"}
-          </button>
         )}
         <button
           onClick={() => setSelectedVideo(null)}
