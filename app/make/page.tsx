@@ -588,6 +588,18 @@ export default function MakePage() {
   return (
     <main style={{ minHeight: "calc(100vh - 64px)", padding: isMobile ? "16px" : "24px" }}>
       <div style={{ width: "100%", maxWidth: "1200px", margin: "0 auto" }}>
+        <div style={{ 
+          padding: "16px 24px", 
+          backgroundColor: "#fff3cd", 
+          border: "1px solid #ffc107",
+          borderRadius: "8px",
+          marginBottom: "24px",
+          textAlign: "center"
+        }}>
+          <p style={{ fontSize: isMobile ? "14px" : "16px", fontWeight: 600, color: "#856404", margin: 0 }}>
+            ⚠️ 현재 영상 제작 기능이 일시적으로 중단되었습니다.
+          </p>
+        </div>
         <h1 style={{ fontSize: isMobile ? "24px" : "32px", fontWeight: 700, marginBottom: "8px", color: "#000000" }}>
           영상 만들기
         </h1>
@@ -778,54 +790,42 @@ export default function MakePage() {
             {/* 배경 제거 버튼 */}
             <button
               onClick={handleRemoveBackground}
-              disabled={!selectedFile || isUploading || isRemovingBackground || isCreatingVideo}
+              disabled={true}
               style={{
                 width: "100%",
                 padding: "12px 24px",
                 fontSize: "14px",
                 fontWeight: 600,
-                border: "1px solid #000000",
+                border: "1px solid #cccccc",
                 borderRadius: "8px",
-                backgroundColor: removedBackgroundUrl ? "#f5f5f5" : "#000000",
-                color: removedBackgroundUrl ? "#000000" : "#ffffff",
-                cursor: removedBackgroundUrl || (!selectedFile || isUploading || isRemovingBackground || isCreatingVideo) ? "not-allowed" : "pointer",
-                opacity: (!selectedFile || isUploading || isRemovingBackground || isCreatingVideo) ? 0.5 : 1,
+                backgroundColor: "#f5f5f5",
+                color: "#999999",
+                cursor: "not-allowed",
+                opacity: 0.5,
                 marginBottom: "12px",
               }}
             >
-              {isRemovingBackground
-                ? "배경 제거 중..."
-                : removedBackgroundUrl
-                ? "✅ 배경 제거 완료 (다시 실행)"
-                : "배경 제거하기"}
+              배경 제거하기 (일시 중단)
             </button>
 
             {/* 3D 홀로그램 영상 만들기 버튼 */}
             <button
               onClick={handleCreateVideo}
-              disabled={
-                !selectedFile || 
-                isUploading || 
-                isRemovingBackground || 
-                isCreatingVideo ||
-                (!removedBackgroundUrl && !skipBackgroundRemoval)
-              }
+              disabled={true}
               style={{
                 width: "100%",
                 padding: "12px 24px",
                 fontSize: "14px",
                 fontWeight: 600,
-                border: "1px solid #000000",
+                border: "1px solid #cccccc",
                 borderRadius: "8px",
-                backgroundColor: "#000000",
-                color: "#ffffff",
-                cursor: (!selectedFile || isUploading || isRemovingBackground || isCreatingVideo || (!removedBackgroundUrl && !skipBackgroundRemoval)) ? "not-allowed" : "pointer",
-                opacity: (!selectedFile || isUploading || isRemovingBackground || isCreatingVideo || (!removedBackgroundUrl && !skipBackgroundRemoval)) ? 0.5 : 1,
+                backgroundColor: "#f5f5f5",
+                color: "#999999",
+                cursor: "not-allowed",
+                opacity: 0.5,
               }}
             >
-              {isCreatingVideo
-                ? "영상 생성 중..."
-                : "3D 홀로그램 영상 만들기"}
+              3D 홀로그램 영상 만들기 (일시 중단)
             </button>
 
             {uploadMessage && (

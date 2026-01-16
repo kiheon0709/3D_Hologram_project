@@ -23,24 +23,24 @@ export default function HomePage() {
           </div>
         </div>
         
-        <Link
-          href="/make"
+        <div
           style={{
             display: "inline-block",
             padding: "16px 32px",
             fontSize: "16px",
             fontWeight: 600,
-            border: "1px solid #000000",
+            border: "1px solid #cccccc",
             borderRadius: "8px",
-            backgroundColor: "#000000",
-            color: "#ffffff",
-            textDecoration: "none",
-            transition: "opacity 0.2s",
+            backgroundColor: "#f5f5f5",
+            color: "#999999",
+            cursor: "not-allowed",
           }}
-          className="home-cta-button"
         >
-          영상 만들기 시작하기 →
-        </Link>
+          영상 만들기 일시 중단 중
+        </div>
+        <p style={{ fontSize: "14px", color: "#666666", marginTop: "16px" }}>
+          현재 영상 제작 기능이 일시적으로 중단되었습니다.
+        </p>
       </div>
     </main>
   );
