@@ -792,10 +792,23 @@ export default function ArchivePage() {
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = "translateY(-4px)";
                   e.currentTarget.style.boxShadow = "0 8px 16px rgba(0, 0, 0, 0.1)";
+                  // 마우스 호버 시 비디오 재생
+                  const videoElement = e.currentTarget.querySelector('video') as HTMLVideoElement;
+                  if (videoElement) {
+                    videoElement.play().catch(() => {
+                      // 자동재생 실패 시 무시 (브라우저 정책)
+                    });
+                  }
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
                   e.currentTarget.style.boxShadow = "none";
+                  // 마우스 떠날 때 비디오 일시정지 및 처음으로
+                  const videoElement = e.currentTarget.querySelector('video') as HTMLVideoElement;
+                  if (videoElement) {
+                    videoElement.pause();
+                    videoElement.currentTime = 0;
+                  }
                 }}
               >
                 <div
@@ -816,12 +829,11 @@ export default function ArchivePage() {
                     }}
                     muted
                     playsInline
-                    onMouseEnter={(e) => {
-                      e.currentTarget.play();
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.pause();
-                      e.currentTarget.currentTime = 0;
+                    preload="metadata"
+                    onLoadedMetadata={(e) => {
+                      // 첫 프레임을 포스터로 사용하기 위해 현재 시간을 0으로 설정
+                      const videoEl = e.currentTarget;
+                      videoEl.currentTime = 0.1; // 첫 프레임 표시
                     }}
                   />
                   <div
