@@ -217,8 +217,10 @@ async function downloadAndUploadVideo(
     offset: 0,
   });
 
-  // 파일명 생성: {user_id}_{번호}.mp4 또는 anonymous_{timestamp}.mp4
+  // 파일명 생성: {user_id}_{번호}_{timestamp}.mp4 또는 anonymous_{timestamp}.mp4
   let fileName: string;
+  const timestamp = Date.now();
+  
   if (userId) {
     // 로그인한 사용자: 해당 유저의 파일만 필터링해서 번호 계산
     const prefix = `${userId}_`;
@@ -228,7 +230,7 @@ async function downloadAndUploadVideo(
     if (userFiles.length > 0) {
       const numericNames = userFiles
         .map((f) => {
-          const base = f.name.replace(prefix, "").split(".")[0];
+          const base = f.name.replace(prefix, "").split("_")[0]; // 타임스탬프 제외하고 첫 번째 숫자만
           const num = Number(base);
           return Number.isNaN(num) ? null : num;
         })
@@ -238,10 +240,10 @@ async function downloadAndUploadVideo(
         nextIndex = Math.max(...numericNames) + 1;
       }
     }
-    fileName = `${userId}_${nextIndex}.mp4`;
+    fileName = `${userId}_${nextIndex}_${timestamp}.mp4`;
   } else {
     // 로그인하지 않은 사용자: 타임스탬프 사용
-    fileName = `anonymous_${Date.now()}.mp4`;
+    fileName = `anonymous_${timestamp}.mp4`;
   }
 
   const filePath = `veo_video/${fileName}`;
