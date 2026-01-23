@@ -105,7 +105,7 @@ async function createVideoWithReplicate(imageUrl: string, prompt: string): Promi
 }
 
 /**
- * Veo (Vertex AI)를 사용한 비디오 생성
+ * Veo (Vertex AI)를 사용한 비디오 생성 시작 (operation name 반환)
  */
 async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<string> {
   // Vertex AI 인증을 위한 모듈 import
@@ -190,78 +190,8 @@ async function createVideoWithVeo(imageUrl: string, prompt: string): Promise<str
   const operationName = operation.name;
   console.log("✅ Vertex AI operation 생성됨:", operationName);
 
-  // 6) 작업 완료까지 폴링
-  let pollCount = 0;
-  const maxPolls = 180; // 최대 60분 (20초 * 180)
-  
-  let currentOperation = operation;
-  
-  while (!currentOperation.done && pollCount < maxPolls) {
-    await new Promise((r) => setTimeout(r, 20000)); // 20초 대기
-    pollCount++;
-
-    // Vertex AI fetchPredictOperation 엔드포인트 사용
-    const pollUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/veo-3.1-fast-generate-preview:fetchPredictOperation`;
-    
-    const pollRes = await fetch(pollUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        operationName: operationName,
-      }),
-    });
-
-    if (!pollRes.ok) {
-      const errorText = await pollRes.text();
-      throw new Error(`Vertex AI 작업 상태 확인 실패: ${errorText}`);
-    }
-
-    currentOperation = await pollRes.json();
-    console.log(`⏳ Vertex AI 작업 상태 (${pollCount}/${maxPolls}):`, currentOperation.done ? '완료' : '진행중');
-  }
-
-  if (pollCount >= maxPolls) {
-    throw new Error("Vertex AI Veo 영상 생성 시간 초과: 최대 대기 시간을 초과했습니다.");
-  }
-
-  if (currentOperation.error) {
-    throw new Error(`Vertex AI Veo 영상 생성에 실패했습니다: ${JSON.stringify(currentOperation.error)}`);
-  }
-
-  // 7) 결과 영상 URI 추출
-  const response = currentOperation.response || {};
-  
-  // Veo 3 응답 형식: response.predictions[0].storageUri 또는 response.videos[0].gcsUri
-  const predictions = response.predictions || [];
-  const videos = response.videos || [];
-  
-  let videoUri: string | null = null;
-  
-  // 방법 1: predictions[0].storageUri
-  if (predictions.length > 0 && predictions[0].storageUri) {
-    videoUri = predictions[0].storageUri;
-  }
-  // 방법 2: videos[0].gcsUri
-  else if (videos.length > 0 && videos[0].gcsUri) {
-    videoUri = videos[0].gcsUri;
-  }
-  // 방법 3: bytesBase64Encoded (Storage URI 없이 바이트로 반환된 경우)
-  else if (predictions.length > 0 && predictions[0].bytesBase64Encoded) {
-    throw new Error("비디오가 바이트로 반환되었습니다. storageUri 파라미터를 설정해야 합니다.");
-  }
-  
-  if (!videoUri) {
-    console.error("Vertex AI 응답 전체:", JSON.stringify(currentOperation, null, 2));
-    throw new Error(`Vertex AI 영상 URI를 찾을 수 없습니다. 응답: ${JSON.stringify(response)}`);
-  }
-
-  console.log("✅ Vertex AI Veo 영상 생성 완료, 결과 URI:", videoUri);
-
-  // 8) GCS URI를 그대로 반환 (downloadAndUploadVideo에서 처리)
-  return videoUri;
+  // operation name을 반환 (폴링은 클라이언트에서 처리)
+  return operationName;
 }
 
 /**
@@ -481,13 +411,54 @@ export async function POST(req: NextRequest) {
 
     console.log("홀로그램 영상 생성 시작:", { imageUrl, platform, prompt: prompt.substring(0, 50) + "...", userId: user.id, currentCredit: profile.credit });
 
-    // 플랫폼에 따라 비디오 생성
-    let videoUrl: string;
+    // 플랫폼에 따라 비디오 생성 시작
+    let operationId: string;
     try {
       if (platform === "veo") {
-        videoUrl = await createVideoWithVeo(imageUrl, prompt);
+        // Veo: operation name 반환 (비동기 처리)
+        operationId = await createVideoWithVeo(imageUrl, prompt);
+        
+        console.log("✅ Veo operation 시작됨:", operationId);
+        
+        // operation name과 필요한 정보를 클라이언트에 반환
+        return NextResponse.json({
+          success: true,
+          operationId: operationId,
+          platform,
+          userId: user.id,
+          status: "processing",
+          message: "영상 생성이 시작되었습니다. 잠시 후 확인해주세요.",
+        });
       } else {
-        videoUrl = await createVideoWithReplicate(imageUrl, prompt);
+        // Replicate: 기존 방식 (동기 처리)
+        const videoUrl = await createVideoWithReplicate(imageUrl, prompt);
+        console.log("영상 생성 완료, 다운로드 및 업로드 시작:", videoUrl);
+
+        // 다운로드하고 Supabase에 업로드
+        const finalVideoUrl = await downloadAndUploadVideo(videoUrl, platform, user.id);
+        const fileName = finalVideoUrl.split("/").pop() || "video.mp4";
+        const filePath = `veo_video/${fileName}`;
+
+        // 영상 생성 성공 후 크래딧 차감
+        const { error: creditError } = await supabase
+          .from("profiles")
+          .update({ credit: profile.credit - CREDIT_COST })
+          .eq("id", user.id);
+
+        if (creditError) {
+          console.error("크래딧 차감 오류:", creditError);
+        } else {
+          console.log(`크래딧 차감 완료: ${CREDIT_COST} 크래딧 차감 (잔여: ${profile.credit - CREDIT_COST})`);
+        }
+
+        return NextResponse.json({
+          success: true,
+          videoUrl: finalVideoUrl,
+          fileName,
+          filePath,
+          platform,
+          remainingCredit: profile.credit - CREDIT_COST,
+        });
       }
     } catch (err: any) {
       console.error(`${platform} 영상 생성 오류:`, err);
@@ -499,49 +470,6 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log("영상 생성 완료, 다운로드 및 업로드 시작:", videoUrl);
-
-    // 다운로드하고 Supabase에 업로드
-    let finalVideoUrl: string;
-    try {
-      finalVideoUrl = await downloadAndUploadVideo(videoUrl, platform, user.id);
-    } catch (err: any) {
-      console.error("비디오 다운로드/업로드 오류:", err);
-      return NextResponse.json(
-        {
-          error: "비디오 다운로드 또는 업로드 실패",
-          detail: err.message || String(err),
-        },
-        { status: 500 }
-      );
-    }
-
-    // 파일명 추출
-    const fileName = finalVideoUrl.split("/").pop() || "video.mp4";
-    const filePath = `veo_video/${fileName}`;
-
-    // 영상 생성 성공 후 크래딧 차감
-    const { error: creditError } = await supabase
-      .from("profiles")
-      .update({ credit: profile.credit - CREDIT_COST })
-      .eq("id", user.id);
-
-    if (creditError) {
-      console.error("크래딧 차감 오류:", creditError);
-      // 영상은 생성되었지만 크래딧 차감 실패 - 로깅만 (나중에 수동 처리 필요)
-    } else {
-      console.log(`크래딧 차감 완료: ${CREDIT_COST} 크래딧 차감 (잔여: ${profile.credit - CREDIT_COST})`);
-    }
-
-    return NextResponse.json({
-      success: true,
-      videoUrl: finalVideoUrl,
-      fileName,
-      filePath,
-      platform,
-      remainingCredit: profile.credit - CREDIT_COST,
-    });
   } catch (err: any) {
     console.error("API /create-hologram-video 오류:", err);
     return NextResponse.json(

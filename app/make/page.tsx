@@ -341,20 +341,32 @@ export default function MakePage() {
         return false;
       }
 
+      setUploadMessage("홀로그램 영상 생성 요청 중...");
+
       const videoRes = await fetch("/api/create-hologram-video", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session.access_token}`,
         },
-      body: JSON.stringify({ 
-        imageUrl: imageUrl,
-        prompt: prompt,
-        platform: videoPlatform
-      }),
+        body: JSON.stringify({ 
+          imageUrl: imageUrl,
+          prompt: prompt,
+          platform: videoPlatform
+        }),
       });
 
-      const videoData = await videoRes.json();
+      // 응답을 텍스트로 먼저 읽어서 JSON 파싱 시도
+      const resText = await videoRes.text();
+      let videoData: any = null;
+      try {
+        videoData = JSON.parse(resText);
+      } catch {
+        // JSON 파싱 실패
+        console.error("응답 파싱 실패:", resText);
+        setUploadMessage(`❌ 서버 응답 오류: ${resText.substring(0, 100)}`);
+        return false;
+      }
 
       if (!videoRes.ok) {
         console.error("영상 생성 오류:", videoData);
@@ -365,41 +377,44 @@ export default function MakePage() {
         return false;
       }
 
+      // Veo 플랫폼: 비동기 처리 (operation ID 받아서 폴링)
+      if (videoPlatform === "veo" && videoData.operationId) {
+        console.log("✅ Veo operation 시작됨:", videoData.operationId);
+        setUploadMessage("홀로그램 영상 생성 중... (1~3분 소요)");
+
+        // 폴링으로 완료 대기
+        const finalVideoUrl = await pollOperationStatus(
+          videoData.operationId,
+          videoData.userId,
+          videoPlatform
+        );
+
+        if (!finalVideoUrl) {
+          return false; // 이미 에러 메시지는 pollOperationStatus에서 설정됨
+        }
+
+        setHologramVideoUrl(finalVideoUrl);
+
+        // DB에 작품 저장
+        await saveHologramToDatabase(
+          session,
+          originalImageUrl,
+          finalVideoUrl
+        );
+
+        return true;
+      }
+
+      // Replicate 플랫폼: 동기 처리 (기존 방식)
       console.log("홀로그램 영상 생성 완료:", videoData);
       setHologramVideoUrl(videoData.videoUrl);
 
       // DB에 작품 저장
-      try {
-        const saveRes = await fetch("/api/holograms", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            title: `홀로그램 작품 ${new Date().toLocaleDateString("ko-KR")}`,
-            original_image_url: originalImageUrl,
-            background_removed_image_url: removedBackgroundUrl || null,
-            video_url: videoData.videoUrl,
-            platform: videoPlatform,
-            hologram_type: hologramType,
-            user_prompt: userPrompt || null,
-          }),
-        });
-
-        const saveData = await saveRes.json();
-        
-        if (saveRes.ok) {
-          console.log("작품 DB 저장 완료:", saveData);
-          setUploadMessage(`✅ 홀로그램 영상 생성 및 저장 완료!`);
-        } else {
-          console.error("작품 저장 오류:", saveData);
-          setUploadMessage(`✅ 영상 생성 완료! (저장 오류: ${saveData.error})`);
-        }
-      } catch (saveErr) {
-        console.error("작품 저장 중 오류:", saveErr);
-        setUploadMessage(`✅ 영상 생성 완료! (저장 실패)`);
-      }
+      await saveHologramToDatabase(
+        session,
+        originalImageUrl,
+        videoData.videoUrl
+      );
 
       return true;
     } catch (err) {
@@ -412,6 +427,111 @@ export default function MakePage() {
       return false;
     } finally {
       setIsCreatingVideo(false);
+    }
+  };
+
+  // Operation 상태를 폴링하여 완료 대기
+  const pollOperationStatus = async (
+    operationId: string,
+    userId: string,
+    platform: string
+  ): Promise<string | null> => {
+    const maxPolls = 180; // 최대 15분 (5초 * 180)
+    let pollCount = 0;
+
+    while (pollCount < maxPolls) {
+      await new Promise((resolve) => setTimeout(resolve, 5000)); // 5초 대기
+      pollCount++;
+
+      try {
+        const statusRes = await fetch(
+          `/api/check-hologram-operation?operationName=${encodeURIComponent(
+            operationId
+          )}&userId=${userId}&platform=${platform}`
+        );
+
+        const statusData = await statusRes.json();
+
+        if (!statusRes.ok) {
+          console.error("상태 확인 오류:", statusData);
+          setUploadMessage(
+            `❌ 상태 확인 실패: ${statusData.error || "알 수 없는 오류"}`
+          );
+          return null;
+        }
+
+        // 완료됨
+        if (statusData.done && statusData.status === "completed") {
+          console.log("✅ 영상 생성 완료:", statusData.videoUrl);
+          setUploadMessage("✅ 홀로그램 영상 생성 완료!");
+          return statusData.videoUrl;
+        }
+
+        // 에러 발생
+        if (statusData.done && statusData.status === "error") {
+          console.error("영상 생성 실패:", statusData);
+          setUploadMessage(
+            `❌ ${statusData.error || "영상 생성 실패"}: ${
+              statusData.detail || ""
+            }`
+          );
+          return null;
+        }
+
+        // 진행 중
+        console.log(`⏳ 영상 생성 중... (${pollCount}/${maxPolls})`);
+        setUploadMessage(
+          `홀로그램 영상 생성 중... (${Math.floor((pollCount * 5) / 60)}분 ${
+            (pollCount * 5) % 60
+          }초 경과)`
+        );
+      } catch (pollErr) {
+        console.error("폴링 오류:", pollErr);
+        // 폴링 오류는 계속 시도
+      }
+    }
+
+    // 타임아웃
+    setUploadMessage("❌ 영상 생성 시간 초과: 최대 대기 시간을 초과했습니다.");
+    return null;
+  };
+
+  // DB에 작품 저장
+  const saveHologramToDatabase = async (
+    session: any,
+    originalImageUrl: string,
+    videoUrl: string
+  ) => {
+    try {
+      const saveRes = await fetch("/api/holograms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          title: `홀로그램 작품 ${new Date().toLocaleDateString("ko-KR")}`,
+          original_image_url: originalImageUrl,
+          background_removed_image_url: removedBackgroundUrl || null,
+          video_url: videoUrl,
+          platform: videoPlatform,
+          hologram_type: hologramType,
+          user_prompt: userPrompt || null,
+        }),
+      });
+
+      const saveData = await saveRes.json();
+
+      if (saveRes.ok) {
+        console.log("작품 DB 저장 완료:", saveData);
+        setUploadMessage(`✅ 홀로그램 영상 생성 및 저장 완료!`);
+      } else {
+        console.error("작품 저장 오류:", saveData);
+        setUploadMessage(`✅ 영상 생성 완료! (저장 오류: ${saveData.error})`);
+      }
+    } catch (saveErr) {
+      console.error("작품 저장 중 오류:", saveErr);
+      setUploadMessage(`✅ 영상 생성 완료! (저장 실패)`);
     }
   };
 
