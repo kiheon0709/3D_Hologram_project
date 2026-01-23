@@ -3,33 +3,31 @@
  */
 
 /**
- * 1면 홀로그램용 최적화된 프롬프트 (자유로운 움직임, 입체감 강화)
- * 변경 사항:
- * - 360도 회전 강제 제거 → 자유로운 움직임
- * - 홀로그램 스타일 문구 제거 (디바이스에서 처리)
- * - 75% 안전 영역 명시로 잘림 방지 강화
- * - 15-45도 각도 변화로 입체감 확보
- * - 프롬프트 길이 단축 (800자 → 480자)
+ * 1면 홀로그램용 최적화된 프롬프트 v2 (2D→3D 추론, 자유로운 움직임)
+ * 주요 개선:
+ * - 보이지 않는 부분(뒷면, 옆면, 깊이) 추론 명시
+ * - 15-45도 각도 제한 제거 → 완전한 자유도
+ * - 적극적 어투로 개선 (포함→만드세요)
+ * - 평면 아님 강조 (not just a flat cutout)
+ * - 사용자 프롬프트 우선도 향상
  */
-export const BASE_HOLOGRAM_PROMPT_1SIDE = `Create a seamless looping video from the input image with depth and dimensionality.
+export const BASE_HOLOGRAM_PROMPT_1SIDE = `Transform the 2D image into a full three-dimensional form by inferring and constructing the unseen parts (back, sides, depth). The subject should exist as a complete 3D entity that looks natural from any angle, not just a flat cutout.
+
+Goal: Create a solid, volumetric subject that feels truly three-dimensional, then animate it actively according to user requirements.
 
 Background: Pure black (#000000) at all times.
 
-CRITICAL - Preserve Original:
-Do NOT alter ANY characteristics of the subject. Face, features, colors, proportions, and all details must remain EXACTLY as in the input image. No modifications whatsoever.
+CRITICAL - Preserve Original Appearance:
+Do NOT alter ANY visible characteristics from the input image. Face, features, colors, proportions - everything visible must remain EXACTLY as shown. Only construct the unseen parts naturally.
 
 CRITICAL - Keep in Frame:
 The ENTIRE subject must stay visible at all times. Never allow any part to go outside the frame or get cropped. Subject can move within the central 75% of frame area only.
 
-Depth & Dimensionality:
-Include subtle movements that reveal the subject's three-dimensional form:
-- Slight rotation or turning (15-45 degrees) to show different angles
-- Gentle perspective shifts to showcase depth
-- Natural movements that emphasize volume and form
-These should feel organic and not distract from the main action.
+Movement with Depth:
+Animate the subject with depth and volume that makes it feel truly 3D as it moves. Movement should showcase the subject's dimensional nature from various perspectives naturally.
 
-Movement:
-Subject can perform any action or movement freely according to user requirements. Movement should be dynamic and expressive while respecting the frame boundaries.
+User Requirements:
+Follow user instructions for movement and actions actively and dynamically while respecting frame boundaries.
 
 Camera: Completely static throughout.
 
