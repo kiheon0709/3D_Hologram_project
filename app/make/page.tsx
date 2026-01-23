@@ -436,11 +436,17 @@ export default function MakePage() {
     userId: string,
     platform: string
   ): Promise<string | null> => {
-    const maxPolls = 180; // 최대 15분 (5초 * 180)
+    const maxPolls = 200; // 최대 약 10분 (초반 2초 * 30 + 이후 5초 * 170)
     let pollCount = 0;
+    const startTime = Date.now();
 
     while (pollCount < maxPolls) {
-      await new Promise((resolve) => setTimeout(resolve, 5000)); // 5초 대기
+      // 첫 번째 폴링은 즉시 시작, 이후부터 대기
+      if (pollCount > 0) {
+        // 처음 30번(1분): 2초 간격, 이후: 5초 간격
+        const delay = pollCount < 30 ? 2000 : 5000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
       pollCount++;
 
       try {
@@ -462,7 +468,8 @@ export default function MakePage() {
 
         // 완료됨
         if (statusData.done && statusData.status === "completed") {
-          console.log("✅ 영상 생성 완료:", statusData.videoUrl);
+          const totalSeconds = Math.floor((Date.now() - startTime) / 1000);
+          console.log(`✅ 영상 생성 완료 (총 ${totalSeconds}초 소요):`, statusData.videoUrl);
           setUploadMessage("✅ 홀로그램 영상 생성 완료!");
           return statusData.videoUrl;
         }
@@ -479,12 +486,21 @@ export default function MakePage() {
         }
 
         // 진행 중
-        console.log(`⏳ 영상 생성 중... (${pollCount}/${maxPolls})`);
-        setUploadMessage(
-          `홀로그램 영상 생성 중... (${Math.floor((pollCount * 5) / 60)}분 ${
-            (pollCount * 5) % 60
-          }초 경과)`
-        );
+        const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+        const minutes = Math.floor(elapsedSeconds / 60);
+        const seconds = elapsedSeconds % 60;
+        
+        console.log(`⏳ 영상 생성 중... (${pollCount}회 확인, ${elapsedSeconds}초 경과)`);
+        
+        if (minutes > 0) {
+          setUploadMessage(
+            `홀로그램 영상 생성 중... (${minutes}분 ${seconds}초 경과)`
+          );
+        } else {
+          setUploadMessage(
+            `홀로그램 영상 생성 중... (${seconds}초 경과)`
+          );
+        }
       } catch (pollErr) {
         console.error("폴링 오류:", pollErr);
         // 폴링 오류는 계속 시도
