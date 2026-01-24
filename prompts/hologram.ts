@@ -3,9 +3,10 @@
  */
 
 /**
- * 1면 홀로그램용 최적화된 프롬프트 v2 (2D→3D 추론, 자유로운 움직임)
+ * 1면 홀로그램용 최적화된 프롬프트 v3 (잘린 부분 복원 기능 추가)
  * 주요 개선:
  * - 보이지 않는 부분(뒷면, 옆면, 깊이) 추론 명시
+ * - 잘린 신체 부위 자동 복원 기능 추가 ✨ NEW
  * - 15-45도 각도 제한 제거 → 완전한 자유도
  * - 적극적 어투로 개선 (포함→만드세요)
  * - 평면 아님 강조 (not just a flat cutout)
@@ -16,6 +17,9 @@ export const BASE_HOLOGRAM_PROMPT_1SIDE = `Transform the 2D image into a full th
 Goal: Create a solid, volumetric subject that feels truly three-dimensional, then animate it actively according to user requirements.
 
 Background: Pure black (#000000) at all times.
+
+CRITICAL - Restore Missing Parts:
+If the input image shows a cropped subject with cut-off limbs, arms, legs, feet, hands, or any body parts, intelligently reconstruct and complete these missing parts to create a full, intact figure. Infer the natural continuation of any truncated body parts based on visible anatomy and proportions. The subject should appear as a complete, whole entity with all body parts fully formed.
 
 CRITICAL - Preserve Original Appearance:
 Do NOT alter ANY visible characteristics from the input image. Face, features, colors, proportions - everything visible must remain EXACTLY as shown. Only construct the unseen parts naturally.
@@ -34,6 +38,49 @@ Camera: Completely static throughout.
 Loop: Perfect seamless loop where first and last frames match naturally.
 
 Lighting: Clean, neutral, consistent. No shadows, reflections, or added elements.`;
+/**
+2D 이미지를 보이지 않는 부분(뒷면, 옆면, 깊이)을 추론하고 구성하여 
+완전한 3차원 형태로 변환하세요. 
+피사체는 평면 오려내기가 아니라, 어느 각도에서든 자연스럽게 보이는 
+완전한 3D 개체로 존재해야 합니다.
+
+목표: 진정으로 3차원으로 느껴지는 단단하고 입체적인 피사체를 만든 다음, 
+사용자 요구사항에 따라 적극적으로 애니메이션하세요.
+
+배경: 항상 순수한 검은색(#000000).
+
+중요 - 잘린 부분 복원:
+입력 이미지가 팔다리, 팔, 다리, 발, 손 또는 신체 일부가 잘린 상태로 
+나타난다면, 이러한 누락된 부분을 지능적으로 재구성하고 완성하여 
+온전한 전체 형상을 만드세요. 보이는 해부학적 구조와 비율을 기반으로 
+잘린 신체 부위의 자연스러운 연장선을 추론하세요. 
+피사체는 모든 신체 부위가 완전히 형성된 완전하고 온전한 개체로 
+보여야 합니다.
+
+중요 - 원본 외형 보존:
+입력 이미지에서 보이는 어떤 특성도 변경하지 마세요. 얼굴, 특징, 색상, 비율 - 
+보이는 모든 것은 정확히 그대로 유지되어야 합니다. 
+보이지 않는 부분만 자연스럽게 구성하세요.
+
+중요 - 프레임 안 유지:
+전체 피사체가 항상 보여야 합니다. 어떤 부분도 프레임 밖으로 나가거나 
+잘리지 않도록 하세요. 피사체는 프레임 중앙 75% 영역 안에서만 움직일 수 있습니다.
+
+깊이감 있는 움직임:
+피사체가 움직일 때 진정으로 3D로 느껴지도록 깊이와 부피를 가진 
+애니메이션을 만드세요. 움직임은 자연스럽게 여러 각도에서 
+피사체의 입체적 특성을 보여줘야 합니다.
+
+사용자 요구사항:
+프레임 경계를 존중하면서 사용자 지시사항에 따라 움직임과 동작을 
+적극적이고 역동적으로 따르세요.
+
+카메라: 전체에 걸쳐 완전히 고정.
+
+루프: 첫 번째와 마지막 프레임이 자연스럽게 일치하는 완벽한 끊김 없는 루프.
+
+조명: 깨끗하고, 중립적이며, 일관성 있음. 그림자, 반사, 추가 요소 없음.
+ */
 
 /**
  * 4면 홀로그램용 기본 3D 변환 프롬프트 (회전 없음, 자유도 높음)
