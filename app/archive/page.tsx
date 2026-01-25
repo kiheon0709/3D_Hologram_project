@@ -14,14 +14,154 @@ type VideoFile = {
   hologramType?: "1side" | "4sides";
 };
 
+// 비디오 카드 컴포넌트 (Intersection Observer로 lazy loading)
+function VideoCard({ video, onClick }: { video: VideoFile; onClick: () => void }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !isVisible) {
+            setIsVisible(true);
+          }
+        });
+      },
+      { rootMargin: "100px" } // 화면에 보이기 100px 전에 로딩 시작
+    );
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [isVisible]);
+
+  return (
+    <div
+      ref={cardRef}
+      onClick={onClick}
+      style={{
+        border: "1px solid #e5e5e5",
+        borderRadius: "12px",
+        overflow: "hidden",
+        cursor: "pointer",
+        transition: "transform 0.2s, box-shadow 0.2s",
+        backgroundColor: "#ffffff",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-4px)";
+        e.currentTarget.style.boxShadow = "0 8px 16px rgba(0, 0, 0, 0.1)";
+        const videoElement = e.currentTarget.querySelector('video') as HTMLVideoElement;
+        if (videoElement && isLoaded) {
+          videoElement.play().catch(() => {});
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "none";
+        const videoElement = e.currentTarget.querySelector('video') as HTMLVideoElement;
+        if (videoElement) {
+          videoElement.pause();
+          videoElement.currentTime = 0;
+        }
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          aspectRatio: "16 / 9",
+          backgroundColor: isLoaded ? "#000000" : "#e5e5e5",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        {!isLoaded && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#999999",
+              fontSize: "14px",
+            }}
+          >
+            로딩 중...
+          </div>
+        )}
+        {isVisible && (
+          <video
+            src={video.publicUrl}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              opacity: isLoaded ? 1 : 0,
+              transition: "opacity 0.3s",
+            }}
+            muted
+            playsInline
+            preload="metadata"
+            onLoadedData={() => setIsLoaded(true)}
+            onLoadedMetadata={(e) => {
+              e.currentTarget.currentTime = 0.1;
+            }}
+          />
+        )}
+        <div
+          style={{
+            position: "absolute",
+            top: "8px",
+            right: "8px",
+            padding: "4px 8px",
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            borderRadius: "4px",
+            color: "#ffffff",
+            fontSize: "12px",
+          }}
+        >
+          MP4
+        </div>
+      </div>
+      <div style={{ padding: "16px" }}>
+        <h3
+          style={{
+            fontSize: "16px",
+            fontWeight: 600,
+            marginBottom: "8px",
+            color: "#000000",
+          }}
+        >
+          {video.nickname || video.userId || video.name.replace(".mp4", "")}
+        </h3>
+        {video.created_at && (
+          <p style={{ fontSize: "12px", color: "#666666", margin: 0 }}>
+            {new Date(video.created_at).toLocaleDateString("ko-KR", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ArchivePage() {
   const [videos, setVideos] = useState<VideoFile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedVideo, setSelectedVideo] = useState<VideoFile | null>(null);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [videoScale, setVideoScale] = useState<number>(1.0);
-  const [isFlipped, setIsFlipped] = useState<boolean>(true); // 기본값은 true (상하반전)
+  const [isFlipped, setIsFlipped] = useState<boolean>(true);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [displayCount, setDisplayCount] = useState<number>(20);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fourSidesContainerRef = useRef<HTMLDivElement>(null);
   const videoTopRef = useRef<HTMLVideoElement>(null);
@@ -298,52 +438,64 @@ export default function ArchivePage() {
     loadVideos();
   }, []);
 
+  // 스크롤 이벤트 감지하여 자동으로 더 로드
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isLoadingMore || displayCount >= videos.length) return;
+      
+      const scrollHeight = document.documentElement.scrollHeight;
+      const scrollTop = document.documentElement.scrollTop;
+      const clientHeight = document.documentElement.clientHeight;
+      
+      if (scrollTop + clientHeight >= scrollHeight - 500) {
+        setIsLoadingMore(true);
+        setTimeout(() => {
+          setDisplayCount(prev => Math.min(prev + 20, videos.length));
+          setIsLoadingMore(false);
+        }, 100); // 더 빠르게
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [videos.length, displayCount, isLoadingMore]);
+
   const loadVideos = async () => {
     try {
-      setLoading(true);
       const bucket = "3D_hologram_images";
       
-      // veo_video 폴더에서 모든 파일 가져오기
+      // 1. Storage에서 파일 목록만 먼저 가져오기
       const { data: files, error } = await supabase.storage
         .from(bucket)
         .list("veo_video", {
-          limit: 100,
+          limit: 1000,
           offset: 0,
           sortBy: { column: "created_at", order: "desc" },
         });
 
-      if (error) {
-        console.error("영상 목록 로드 오류:", error);
-        return;
-      }
-
-      if (!files || files.length === 0) {
+      if (error || !files || files.length === 0) {
         setVideos([]);
+        setLoading(false);
         return;
       }
 
-      // 각 파일의 public URL 가져오기 및 userId 추출
-      const videosWithUrls = files
+      // 2. 즉시 기본 정보로 카드 표시 (스켈레톤 대신 실제 카드)
+      const basicVideos = files
         .filter((file) => file.name.endsWith(".mp4"))
         .map((file) => {
           const { data } = supabase.storage
             .from(bucket)
             .getPublicUrl(`veo_video/${file.name}`);
           
-          // 파일명에서 userId 추출: {userId}_{번호}.mp4 또는 anonymous_{timestamp}.mp4
           const fileNameWithoutExt = file.name.replace(".mp4", "");
           let userId: string | undefined;
           if (fileNameWithoutExt.startsWith("anonymous_")) {
-            userId = undefined; // anonymous는 userId 없음
+            userId = undefined;
           } else {
-            // 첫 번째 언더스코어(_) 앞부분이 userId
             const firstUnderscoreIndex = fileNameWithoutExt.indexOf("_");
-            if (firstUnderscoreIndex > 0) {
-              userId = fileNameWithoutExt.substring(0, firstUnderscoreIndex);
-            } else {
-              // 언더스코어가 없으면 전체가 userId일 수 있음 (UUID 형식)
-              userId = fileNameWithoutExt;
-            }
+            userId = firstUnderscoreIndex > 0 
+              ? fileNameWithoutExt.substring(0, firstUnderscoreIndex)
+              : fileNameWithoutExt;
           }
           
           return {
@@ -353,24 +505,36 @@ export default function ArchivePage() {
             updated_at: file.updated_at || "",
             publicUrl: data.publicUrl,
             userId: userId,
+            hologramType: "1side" as const, // 기본값
           };
         });
 
-      // holograms 테이블에서 hologram_type과 user_id 정보 가져오기
-      const videoUrls = videosWithUrls.map(v => v.publicUrl);
-      const { data: holograms, error: hologramsError } = await supabase
-        .from("holograms")
-        .select("video_url, hologram_type, user_id")
-        .in("video_url", videoUrls);
+      // 즉시 카드들 표시
+      setVideos(basicVideos);
+      setLoading(false);
+
+      // 3. 백그라운드에서 추가 정보 로드 (nickname, hologramType)
+      const videoUrls = basicVideos.map(v => v.publicUrl);
       
-      if (hologramsError) {
-        console.error("holograms 조회 오류:", hologramsError);
-      }
-      
+      const [hologramsResult, profilesResult] = await Promise.all([
+        supabase
+          .from("holograms")
+          .select("video_url, hologram_type, user_id")
+          .in("video_url", videoUrls),
+        (async () => {
+          const allUserIds = [...new Set(basicVideos.map(v => v.userId).filter(Boolean))];
+          if (allUserIds.length === 0) return { data: null };
+          return supabase
+            .from("profiles")
+            .select("id, nickname")
+            .in("id", allUserIds);
+        })()
+      ]);
+
       const urlToHologramType = new Map<string, "1side" | "4sides">();
       const urlToUserId = new Map<string, string>();
-      if (holograms) {
-        holograms.forEach(h => {
+      if (hologramsResult.data) {
+        hologramsResult.data.forEach(h => {
           urlToHologramType.set(h.video_url, h.hologram_type);
           if (h.user_id) {
             urlToUserId.set(h.video_url, h.user_id);
@@ -378,45 +542,19 @@ export default function ArchivePage() {
         });
       }
 
-      // holograms 테이블에서 가져온 user_id로 nickname 조회
-      const allUserIds = [
-        ...new Set([
-          ...Array.from(urlToUserId.values()).filter(Boolean),
-          ...videosWithUrls.map(v => v.userId).filter(Boolean)
-        ])
-      ];
-      
       const userIdToNickname = new Map<string, string>();
-      if (allUserIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id, nickname")
-          .in("id", allUserIds);
-        
-        if (profilesError) {
-          console.error("profiles 조회 오류:", profilesError);
-        }
-        
-        if (profiles) {
-          profiles.forEach(profile => {
-            if (profile.nickname) {
-              userIdToNickname.set(profile.id, profile.nickname);
-            }
-          });
-        }
+      if (profilesResult.data) {
+        profilesResult.data.forEach(profile => {
+          if (profile.nickname) {
+            userIdToNickname.set(profile.id, profile.nickname);
+          }
+        });
       }
 
-      // 각 비디오에 nickname과 hologramType 추가
-      const videosWithNicknames = videosWithUrls.map(video => {
-        // holograms 테이블에서 가져온 user_id를 우선 사용, 없으면 파일명에서 추출한 userId 사용
+      // 4. 추가 정보로 업데이트
+      const enrichedVideos = basicVideos.map(video => {
         const finalUserId = urlToUserId.get(video.publicUrl) || video.userId;
-        // userIdToNickname에서 nickname 가져오기 (없으면 undefined)
         const nickname = finalUserId ? userIdToNickname.get(finalUserId) : undefined;
-        
-        // 디버깅 로그
-        if (finalUserId && !nickname) {
-          console.warn(`닉네임을 찾을 수 없음: userId=${finalUserId}, videoUrl=${video.publicUrl}`);
-        }
         
         return {
           ...video,
@@ -426,10 +564,10 @@ export default function ArchivePage() {
         };
       });
 
-      setVideos(videosWithNicknames);
+      setVideos(enrichedVideos);
     } catch (err) {
-      console.error("영상 로드 중 오류:", err);
-    } finally {
+      console.error("영상 로드 오류:", err);
+      setVideos([]);
       setLoading(false);
     }
   };
@@ -444,8 +582,62 @@ export default function ArchivePage() {
           <p style={{ fontSize: "16px", color: "#666666", marginBottom: "32px" }}>
             생성된 홀로그램 영상들을 모아볼 수 있는 공간입니다.
           </p>
-          <p style={{ fontSize: "14px", color: "#999999" }}>로딩 중...</p>
+          {/* 스켈레톤 로딩 */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+              gap: "24px",
+            }}
+          >
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  border: "1px solid #e5e5e5",
+                  borderRadius: "12px",
+                  overflow: "hidden",
+                  backgroundColor: "#ffffff",
+                }}
+              >
+                <div
+                  style={{
+                    width: "100%",
+                    aspectRatio: "16 / 9",
+                    backgroundColor: "#e5e5e5",
+                    animation: "pulse 1.5s ease-in-out infinite",
+                  }}
+                />
+                <div style={{ padding: "16px" }}>
+                  <div
+                    style={{
+                      height: "20px",
+                      backgroundColor: "#e5e5e5",
+                      borderRadius: "4px",
+                      marginBottom: "8px",
+                      animation: "pulse 1.5s ease-in-out infinite",
+                    }}
+                  />
+                  <div
+                    style={{
+                      height: "14px",
+                      backgroundColor: "#e5e5e5",
+                      borderRadius: "4px",
+                      width: "60%",
+                      animation: "pulse 1.5s ease-in-out infinite",
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+        <style jsx>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+          }
+        `}</style>
       </main>
     );
   }
@@ -777,103 +969,58 @@ export default function ArchivePage() {
               gap: "24px",
             }}
           >
-            {videos.map((video) => (
-              <div
+            {videos.slice(0, displayCount).map((video) => (
+              <VideoCard
                 key={video.id}
+                video={video}
                 onClick={() => setSelectedVideo(video)}
-                style={{
-                  border: "1px solid #e5e5e5",
-                  borderRadius: "12px",
-                  overflow: "hidden",
-                  cursor: "pointer",
-                  transition: "transform 0.2s, box-shadow 0.2s",
-                  backgroundColor: "#ffffff",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-4px)";
-                  e.currentTarget.style.boxShadow = "0 8px 16px rgba(0, 0, 0, 0.1)";
-                  // 마우스 호버 시 비디오 재생
-                  const videoElement = e.currentTarget.querySelector('video') as HTMLVideoElement;
-                  if (videoElement) {
-                    videoElement.play().catch(() => {
-                      // 자동재생 실패 시 무시 (브라우저 정책)
-                    });
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "none";
-                  // 마우스 떠날 때 비디오 일시정지 및 처음으로
-                  const videoElement = e.currentTarget.querySelector('video') as HTMLVideoElement;
-                  if (videoElement) {
-                    videoElement.pause();
-                    videoElement.currentTime = 0;
-                  }
-                }}
-              >
-                <div
-                  style={{
-                    width: "100%",
-                    aspectRatio: "16 / 9",
-                    backgroundColor: "#000000",
-                    position: "relative",
-                    overflow: "hidden",
-                  }}
-                >
-                  <video
-                    src={video.publicUrl}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
-                    muted
-                    playsInline
-                    preload="metadata"
-                    onLoadedMetadata={(e) => {
-                      // 첫 프레임을 포스터로 사용하기 위해 현재 시간을 0으로 설정
-                      const videoEl = e.currentTarget;
-                      videoEl.currentTime = 0.1; // 첫 프레임 표시
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "8px",
-                      right: "8px",
-                      padding: "4px 8px",
-                      backgroundColor: "rgba(0, 0, 0, 0.7)",
-                      borderRadius: "4px",
-                      color: "#ffffff",
-                      fontSize: "12px",
-                    }}
-                  >
-                    MP4
-                  </div>
-                </div>
-                <div style={{ padding: "16px" }}>
-                  <h3
-                    style={{
-                      fontSize: "16px",
-                      fontWeight: 600,
-                      marginBottom: "8px",
-                      color: "#000000",
-                    }}
-                  >
-                    {video.nickname || video.userId || video.name.replace(".mp4", "")}
-                  </h3>
-                  {video.created_at && (
-                    <p style={{ fontSize: "12px", color: "#666666", margin: 0 }}>
-                      {new Date(video.created_at).toLocaleDateString("ko-KR", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </p>
-                  )}
-                </div>
-              </div>
+              />
             ))}
+          </div>
+        )}
+
+        {/* 더보기 버튼 및 로딩 상태 */}
+        {videos.length > displayCount && (
+          <div style={{ textAlign: "center", marginTop: "48px" }}>
+            {isLoadingMore ? (
+              <p style={{ fontSize: "16px", color: "#666666" }}>
+                로딩 중...
+              </p>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsLoadingMore(true);
+                  setTimeout(() => {
+                    setDisplayCount(prev => Math.min(prev + 20, videos.length));
+                    setIsLoadingMore(false);
+                  }, 100);
+                }}
+                style={{
+                  padding: "12px 32px",
+                  fontSize: "16px",
+                  fontWeight: 600,
+                  backgroundColor: "#000000",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  transition: "opacity 0.2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+              >
+                더보기 ({displayCount} / {videos.length})
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* 모든 항목을 표시했을 때 */}
+        {videos.length > 0 && displayCount >= videos.length && (
+          <div style={{ textAlign: "center", marginTop: "48px" }}>
+            <p style={{ fontSize: "14px", color: "#999999" }}>
+              모든 영상을 표시했습니다 (총 {videos.length}개)
+            </p>
           </div>
         )}
       </div>
